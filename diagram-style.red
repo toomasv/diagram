@@ -7,7 +7,7 @@ Red [
 	RedBNF:			{
 		diagram: ['diagram any [diagram-settings panel-settings] diagram-block]
 		diagram-settings: [direction | size-spec | border-spec]
-		direction: ['vertical | 'horizontal]
+		direction: ['vertical | 'horizontal] ; General direction for connector, default is `horizontal`
 		size-spec: ['size pair!]
 		border-spec: ['border opt [integer! | color-spec | border-block]]
 		color-spec: [color-word | tuple!]
