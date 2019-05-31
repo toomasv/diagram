@@ -1,6 +1,6 @@
 Red [
 	Title: 			{Diagram dialect}
-	Description: 	{Extends VID to allow easy diagram description}
+	Description: 		{Extends VID to allow easy diagram description}
 	Author: 		{Toomas Vooglaid}
 	Date:			31-May-2019
 	Version:		#0.5
@@ -101,7 +101,7 @@ context [
 						all [line1 = 'vline a/1 <> a/2]
 					][keep 'sweep]
 				][
-					keep line2 keep l2*						; last line
+					keep line2 keep l2*				; last line
 				]
 			]
 		]
@@ -775,7 +775,8 @@ context [
 		blk
 	]
 ]
-;comment {
+; Examples
+comment {
 view probe dia [
 	;style dbl: connect extra [double]
 	below
@@ -819,34 +820,4 @@ view probe dia [
 		at 250x40 note box 60x60 0 rt [i "Some " /i u "remarks" /u b " here" /b] yello ;"Some^/remarks^/here";
 	]
 ]
-;}
-
-comment {
-Added styles:
-
-* diagram
-* node
-* connect
-
-Added keywords:
-* dialect
-  - vertical | horizontal     ; default orientation of connectors, default horizontal
-  - border opt [
-		integer!              ; line-width
-		tuple! | <color-word> ; color
-		block!                ; [line-width: integer! pen: <color>]
-	]
-  - size pair!				  ; diagram size, if not given size will be computeted 
-                                from layout of nodes and connectors
-* node
-  - box opt pair! opt integer! ; pair sets size, integer sets corner radius (default 10)
-  - diamond opt pair!
-  - ellipse opt pair!
-  
-  - border [<color> | integer! | block!] ; semantics as for `diagram` but argument is mandatory
-  - link url!
-  - rt block!                  ; rich-text with its rtd block. This is given instead of normal node text.
-
-* connect
-  -  
 }
