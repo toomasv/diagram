@@ -6,15 +6,16 @@ Red [
 	Version:		#0.5
 	RedBNF:			{
 		diagram: ['diagram any [diagram-settings panel-settings] diagram-block]
-		diagram-settings: [direction | size-spec | border-spec]
+		diagram-settings: [direction | size-spec | border-spec | funcs]
 		direction: ['vertical | 'horizontal] ; General direction for connector, default is `horizontal`
-		size-spec: ['size pair!]
-		border-spec: ['border opt [integer! | color-spec | border-block]]
+		size-spec: [integer! | pair! | ['width | 'height] integer!] ; single integer! -- width
+		border-spec: ['border [integer! | color-spec | border-block]]
 		color-spec: [color-word | tuple!]
 		border-block: [
 			  quote line-width: integer! quote pen: [color-word | tuple!] 
 			| quote pen: [color-word | tuple!] quote line-width: integer!
 		]
+		funcs: [any ['drag | 'wheel]]
 		diagram-block: [any [VID-keywords | node-spec | connect-spec]]
 		
 		node-spec: [['node | node-style] any node-settings any base-settings]
@@ -42,15 +43,20 @@ Red [
 		path-step: integer!
 		hint-spec: [some [opt direction any path-step]]
 		format-attr: [shape-spec | line-format | arrow-spec]
-		shape-spec: [line-spec | spline-spec | arc-spec | curve-spec | qcurve-spec]
-		line-spec: ['line any pair!] ; intermediate points only - start- and end-points are automatically given
-		spline-spec: ['spline any pair!] ; Remarks as above 
+		shape-spec: [line-spec | rel-line-spec | rel-spline-spec | orto-line-spec | arc-spec | curve-spec | qcurve-spec]
+		line-spec: [['line | 'spline] any pair!] ; intermediate points only - start- and end-points are 
+			automatically given
+		rel-line-spec: [quote 'line any ['_ | pair!]] ; `_` - automatically computed legs, 
+			pair!s are relative, start/end-points are automatic
+		rel-spline-spec: [quote 'spline any [pair! | '_]] ; As above, pair!s are control-points
+		orto-line-spec: [['hline | 'vline] integer!] ; Relocates to-node to the endpoint of orto-line
 		arc-spec: ['arc opt 'sweep] ; If `sweep` is present, arc is drawn clockwise, otherwise counterclockwise
 		curve-spec: ['curve opt [2 pair!]] ; Cubic bezier curve - pair!-s are control-points
 		qcurve-spec: ['qcurve opt pair!] ; Quadratic bezier curve - pair! is control-point
 		line-format: ['line-width integer! | 'pen [color-word | tuple] | 'dashed | 'double] ; `dashed` is experimental, 
-			does not produce good result now
-		arrow-spec ['arrow opt 'closed] ; TBD add integer for optional angle, add pair! for dimensions, add `shape` for custom shape
+			does not produce good result now 
+		arrow-spec ['arrow opt ['closed | integer! | pair! | arrow-block]] ; TBD add `shape` for custom shape
+		arrow-block: [any [integer! | pair! | 'closed]] ; integer for optional angle, pair! for dimensions (x--length , y--half-width)
 	}
 ]
 context [
