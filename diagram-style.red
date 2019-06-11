@@ -1449,7 +1449,7 @@ view probe dia [
 	]
 ]
 ]
-;comment [
+comment [
 if not value? 'img [
 	img: draw/transparent 21x21 [
 		fill-pen red 
@@ -1484,7 +1484,7 @@ view probe dia [
 	]
 	;rate 0:0:2 on-time [unview]
 ]
-;]
+]
 comment [
 img: draw/transparent 31x31 [fill-pen red translate 15x15 polygon 0x-15 5x-5 15x0 5x5 0x15 -5x5 -15x0 -5x-5]
 view probe dia [
