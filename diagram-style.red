@@ -125,6 +125,7 @@ context [
 	default-arrow: 10x5
 	default-endsize: 15
 	line-width: pen: none
+	add-space: 0
 	points: [center top bottom left right top-left top-right bottom-left bottom-right]
 	;space: none
 	
@@ -137,6 +138,7 @@ context [
 					;	mx: face/size probe face/options
 					;	node-cnt: 0			; Restart node counting for current diagram
 					;]
+					pos: none
 					on-created: func [face event /local line-width pen corner pane mx mv][
 						
 						if face/options/style <> 'diagram [			; For easy finding
@@ -175,7 +177,12 @@ context [
 						
 						;case/all [
 						; Adjust size
-						if not all [face/extra face/extra/size not any [face/options/drag face/options/wheel]] [
+						if not all [face/extra face/extra/size not any [
+							face/options/drag 
+							face/options/wheel 
+							face/options/navigate
+							face/options/zoom
+						]][
 							mx: face/size 
 							mv: false
 							;ofs: 0x0
@@ -211,20 +218,41 @@ context [
 								]
 							]
 						
-							face/size: mx + 10;15
+							face/size: mx + add-space;15
 							
-							either any [face/options/drag face/options/wheel][
+							either any [
+								face/options/drag 
+								face/options/wheel 
+								face/options/navigate
+								face/options/zoom
+							][
 								found: find face/parent/pane face
+								;ofs: face/offset
 								insert next found layout/only [panel []]
 								panel: select found/2 'pane
 								move found panel
+								found/1/offset: face/offset
 								found/1/size: case [
 									s: face/extra/size [s]
 									w: face/extra/width [as-pair w mx/y ]
 									h: face/extra/height [as-pair mx/x h]
 									true [mx]
 								]
-								found/1/pane/1/offset: 0x0
+								face/offset: 0x0
+								;found/1/pane/1/offset: 0x0
+								
+								;if face/options/zoom [
+								;	lay*: layout/tight compose [size (face/size)]
+								;;	move/part pane: face/pane lay*/pane length? pane
+								;	append lay*/pane copy/deep face/pane
+									;lay/visible? no
+								;	view/tight/no-wait lay* ;/flags 'no-border 
+								;	show lay*;face/parent
+								;	im: to-image lay*
+									;unview/only lay
+								;	append face/draw: [image im]
+								;	clear face/pane
+								;]
 							][
 								if all [face/extra width: face/extra/width] [
 									face/size/x: width
@@ -256,15 +284,22 @@ context [
 						;]
 						show face/parent
 					]
-					on-drag: func [face event][]
-					on-wheel: func [face event][]
-					on-down: func [face event][]
-					on-over: func [face event][]
-					on-up: func [face event][]
+					on-drag: function [face event][]
+					on-wheel: function [face event][]
+					on-down: function [face event][]
+					on-over: function [face event][]
+					on-up: function [face event][]
+					on-key-down: function [face event][]
 				]
 			]
 			init: [
-				if all [face/extra face/extra/size not any [face/options/drag face/options/wheel]][
+				add-space: either all [face/options add-sp: face/options/add][add-sp][0]
+				if all [face/extra face/extra/size not any [
+					face/options/drag 
+					face/options/wheel 
+					face/options/navigate
+					face/options/zoom
+				]][
 					face/size: face/extra/size			; Hard size, no heuristics will be applied
 				]
 				if all [face/options face/options/drag] [
@@ -274,20 +309,51 @@ context [
 						face/offset/y: min 0 max face/parent/size/y - face/size/y face/offset/y
 						show face 'end
 					] :face/actors/on-drag
-					append body-of :face/actors/on-down [system/view/auto-sync?: off] 
+					append body-of :face/actors/on-down bind bind [system/view/auto-sync?: off pos: face/offset] face/actors :face/actors/on-down
 				]
 				if all [face/options face/options/wheel] [
 					append body-of :face/actors/on-wheel bind copy/deep [
-						either event/ctrl? [
-							face/offset/x: min 0 max 
-								face/parent/size/x - face/size/x 
-								face/offset/x + (10 * event/picked)
-						][
-							face/offset/y: min 0 max 
-								face/parent/size/y - face/size/y 
-								face/offset/y + (10 * event/picked)
+						case [
+							event/ctrl? [
+								face/offset/x: min 0 max 
+									face/parent/size/x - face/size/x 
+									face/offset/x + (10 * event/picked)
+							]
+							event/shift? []
+							true [
+								face/offset/y: min 0 max 
+									face/parent/size/y - face/size/y 
+									face/offset/y + (10 * event/picked)
+							]
 						]
 						show face 'end
+					] :face/actors/on-wheel
+				]
+				if all [face/options face/options/navigate][
+					append body-of :face/actors/on-key-down bind [
+						step: 0x0
+						mn: face/parent/size - face/size
+						fo: face/offset
+						switch event/key [
+							up [step/y: min 0 - fo/y 10]
+							down [step/y: max mn/y - fo/y -10]
+							left [step/x: min 0 - fo/x 10]
+							right [step/x: max mn/x - fo/x -10]
+							page-up [step/y: min 0 - fo/y face/parent/size/y]
+							page-down [step/y: max mn/y - fo/y 0 - face/parent/size/y]
+							home [step: 0x0 - fo]
+							end [step: mn - fo]
+						]
+						face/offset: face/offset + step
+					] :face/actors/on-key-down
+					set-focus face
+				]
+				if all [face/options face/options/zoom][
+					face/draw: [scale 1 1]
+					append body-of :face/actors/on-wheel bind [
+						if event/shift? [
+							face/draw/2: face/draw/3: face/draw/2 + (event/picked * .05)
+						]
 					] :face/actors/on-wheel
 				]
 			]
@@ -327,8 +393,8 @@ context [
 				]
 			]
 			init: [
-				unless face/options [face/options: make block! 10]		; For easy finding
-				if face/options/style <> 'node [
+				unless face/options [face/options: make block! 10]
+				if face/options/style <> 'node [					; For easy finding
 					append face/options copy [parent-style: node]
 				]
 				
@@ -718,8 +784,16 @@ context [
 							to: face/data/to 
 							end: all [
 								block? to 
-								to-node: find to get-word! 
-								get to-word to-node/1
+								any [
+									all [
+										to-node: find to get-word! 
+										get to-word to-node/1
+									]
+									all [
+										point: find/tail to 'point
+										reduce ['offset point/1 'size 0x0]
+									]
+								]
 							]
 						][
 							pane: find face/parent/pane face
@@ -754,7 +828,7 @@ context [
 						vertical?: dir = 'vertical
 						
 						; Find starting- and ending-points
-						either any [start/parent = end/parent block? start] [
+						either any [start/parent = end/parent block? start block? end] [
 							start-pos: start/offset + (start/size / 2)
 							end-pos: end/offset + (end/size / 2)
 						][  ; If on different panels
@@ -790,9 +864,7 @@ context [
 							]
 						]
 						if ofs [start-pos: start-pos + ofs] ofs: none
-						; End-point
-						half: end/size / 2
-
+						
 						; Adjust end/offset for `hline`/`vline`
 						orto?: none
 						if all [shape: face/options/shape find [hline vline] shape/1][
@@ -804,6 +876,9 @@ context [
 							orto?: shape/1
 							end/offset: end-pos: start-pos + step
 						]
+
+						; End-point
+						half: end/size / 2
 
 						if to [
 							ofs: either ofs: find to pair! [ofs/1][0x0]
@@ -876,10 +951,12 @@ context [
 						diff: distance - (df * start/size / 2) - (df * end/size / 2)			; Distance between corners
 						
 						; Prepare draw-block
-						draw: [pen black line-width 1 text 0x0 "" shape []]
+						draw: copy [pen black line-width 1 text 0x0 "" shape []]
 						case/all [
 							pen: face/options/pen [draw/pen: pen]
 							line-width: face/options/line-width [draw/line-width: line-width]
+							line-cap: face/options/line-cap [insert draw append [line-cap] line-cap]
+							line-join: face/options/line-join [insert draw append [line-join] line-join]
 							face/options/dashed [
 								pattern: [10x10 [line 0x0 10x10]]
 								insert pattern/2 take/part draw 4
@@ -931,7 +1008,7 @@ context [
 								hline vline [
 									change/part find draw 'shape compose [
 										line (start-pos) (end-pos)
-									] 2								
+									] 2
 								]
 								arc [
 									center: either sweep: face/options/shape/arc [
@@ -1181,17 +1258,17 @@ context [
 				| integer! (append extra append copy [width] d/1)
 				| ['width | 'height] integer! (append extra copy/part d 2)
 				]
+			|	'add [integer! | pair!] (append opts copy/part d 2)		; addition to calculated size
 			|	[ 'vertical | 'horizontal | 'radial | 'border] (
 				  append opts append copy/part d 1 true
 				)  
-			| 	['drag | 'zoom | 'wheel | 'scroll | 'min | 'minible] (
+			| 	['drag | 'wheel | 'navigate] ( ;TBD | 'scroll | 'zoom | 'resize | 'collapse | 'collapsible] (
 				  append opts append copy/part d 1 true
 				)  
 			] s2: (
 				remove/part s s2
 				unless empty? extra [s: insert s compose/only [extra (extra)]]
 				unless empty? opts [s: insert s compose/only [options (opts)]]
-				;s: change/part s compose/only [options (opts)] s2
 			) :s
 		]
 	]
@@ -1210,7 +1287,7 @@ context [
 			  )
 			]
 			| ['hint | 'label | 'labels] skip (append data copy/part d 2)
-			| [ ['pen | 'line-width | 'knee] skip ;| 'end | 'start] skip ;TBD
+			| [ ['pen | 'line-width | 'line-cap | 'line-join | 'knee] skip ;| 'end | 'start] skip ;TBD
 			  | 'arrow ['closed | pair! | integer! | block!]
 			  ] d2: (append opts copy/part d d2)
 			| [ ['line | 'spline] any [pair! | '_]
@@ -1230,7 +1307,6 @@ context [
 				unless empty? data [s: insert s compose/only [data (data)]]
 				unless empty? opts [s: insert s compose/only [options (opts)]]
 			) :s
-			;if (not empty? opts) insert (compose/only [options (opts)]) 
 		]
 	]
 	node-rule: [s: (opts: make block! 10)
@@ -1320,13 +1396,13 @@ view probe dia [
 ]
 comment [
 ;system/view/auto-sync?: off
-view/tight lay: layout probe dia [
-	size 933x800 
+view/tight/no-wait lay: layout probe dia [
+	size 940x800 title "Red type system" 
 	style type-box: diagram border [pen: black] init [axis: 'y]
 	style conn: connect knee 3 
 	style hlin: connect hline 20
 	style type: node border off transparent 78x20 init [axis: 'y]
-	di: diagram wheel height 780 "Red type system" [; width ;913x780
+	di: type-box zoom drag height 780 add 0x5 snow [; width ;913x780
 		type-box 800 220.230.220 [
 			type-box 690x20 200.220.200 [
 				pad 300x-10 type "unset!"							]	hlin at 0x0 type "internal!" 
