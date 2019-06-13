@@ -1402,7 +1402,7 @@ view/tight/no-wait lay: layout probe dia [
 	style conn: connect knee 3 
 	style hlin: connect hline 20
 	style type: node border off transparent 78x20 init [axis: 'y]
-	di: type-box zoom drag height 780 add 0x5 snow [; width ;913x780
+	di: diagram wheel drag height 780 add 0x5 snow [; width ;913x780
 		type-box 800 220.230.220 [
 			type-box 690x20 200.220.200 [
 				pad 300x-10 type "unset!"							]	hlin at 0x0 type "internal!" 
