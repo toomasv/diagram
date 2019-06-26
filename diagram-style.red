@@ -1,9 +1,10 @@
 Red [
 	Title: 			{Diagram dialect}
-	Description: 	{Extends VID to allow easy diagram description}
+	Description: 		{Extends VID to allow easy diagram description}
 	Author: 		{Toomas Vooglaid}
 	Date:			31-May-2019
 	Version:		#0.5
+	Licence: 		"MIT"
 	RedBNF:			{
 		diagram: ['diagram any [diagram-settings panel-settings] diagram-block]
 		diagram-settings: [direction | size-spec | border-spec | funcs]
