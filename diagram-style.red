@@ -1,12 +1,13 @@
 Red [
 	Title: 			{Diagram dialect}
-	Description: 		{Extends VID to allow easy diagram description}
+	Description: 	{Extends VID to allow easy diagram description}
 	Author: 		{Toomas Vooglaid}
 	Date:			31-May-2019
-	Version:		#0.5
+	Last:			7-Jul-2019
+	Version:		#0.6
 	Licence: 		"MIT"
 	RedBNF:			{
-		diagram: ['diagram any [diagram-settings panel-settings] diagram-block]
+		diagram: [['diagram | diagram-style] any diagram-settings any panel-settings diagram-block]
 		diagram-settings: [direction | size-spec | border-spec | funcs]
 		direction: ['vertical | 'horizontal] ; General direction for connector, default is `horizontal`
 		size-spec: [integer! | pair! | ['width | 'height] integer!] ; single integer! -- width
@@ -16,7 +17,7 @@ Red [
 			  quote line-width: integer! quote pen: [color-word | tuple!] 
 			| quote pen: [color-word | tuple!] quote line-width: integer!
 		]
-		funcs: [any ['drag | 'wheel]]
+		funcs: [any ['drag | 'wheel | 'navigate]]
 		diagram-block: [any [VID-keywords | node-spec | connect-spec]]
 		
 		node-spec: [['node | node-style] any node-settings any base-settings]
@@ -31,38 +32,58 @@ Red [
 		| 'pen [word! | tuple!] 'line-width integer!
 		]
 		link-spec: ['link url!]
-		rt-spec: ['rt rtd-layout-block] ; if this is given normal text should not be set
+		rt-spec: ['rt rtd-layout-block] 					; if this is given normal text should not be set
 		
 		connect-spec: [['connect | connect-style] any connect-settings any base-settings]
-		connect-settings: [from-attr | to-attr | hint-attr | format-attr]
+		connect-settings: [from-attr | to-attr | hint-attr | label-attr | format-attr | move-attr | force-attr]
 		from-attr: ['from 1 3 [point-name | point-offset | :node-ref]]
-		to-attr: ['to 1 3 [point-name | point-offset | :node-ref]]
+		to-attr: ['to 1 3 [point-name | point-offset | :node-ref | 'each opt block!]] ; `each` for several targets 
+															; inside a panel or another `diagram` (examples 7)
+															; or in provided block (example 8)
 		point-name: ['top | 'bottom | 'left | 'right | 'top-left | 'top-right | 'bottom-right | 'bottom-right | 'center]
-		point-offset: pair!
+			; by default (i.e. horizontal direction) -- from `right` to `left`
+			; default for vertical direction -- from `bottom` to `top`
+		point-offset: pair! ; additional offset from named point
 		hint-attr: ['hint [direction | path-step | hint-spec]]
 		direction: ['vertical | 'horizontal]
-		path-step: integer!
+		path-step: integer!   								; length of first leg
 		hint-spec: [some [opt direction any path-step]]
+		label-attr: ['label [label-spec | label-block]]
+		label-spec: [pos-word | align | valign | position | angle | color-spec]
+		pos-word: ['start | 'end | 'mid]
+		align: ['left | 'right | 'center]
+		valign: ['top | 'bottom | 'middle]
+		position: [pair! | percent!] 							; offset from start of line or leg
+		angle: ['align | integer!]							; `align` tries to guess the angle of line, integer! sets the angle
+		label-block: [any [label-spec | 'leg integer!]]		; `leg` sets position at given int leg of segmnted connector
 		format-attr: [shape-spec | line-format | arrow-spec]
-		shape-spec: [line-spec | rel-line-spec | rel-spline-spec | orto-line-spec | arc-spec | curve-spec | qcurve-spec]
-		line-spec: [['line | 'spline] any pair!] ; intermediate points only - start- and end-points are 
-			automatically given
-		rel-line-spec: [quote 'line any ['_ | pair!]] ; `_` - automatically computed legs, 
-			pair!s are relative, start/end-points are automatic
-		rel-spline-spec: [quote 'spline any [pair! | '_]] ; As above, pair!s are control-points
-		orto-line-spec: [['hline | 'vline] integer!] ; Relocates to-node to the endpoint of orto-line
-		arc-spec: ['arc opt 'sweep] ; If `sweep` is present, arc is drawn clockwise, otherwise counterclockwise
-		curve-spec: ['curve opt [2 pair!]] ; Cubic bezier curve - pair!-s are control-points
-		qcurve-spec: ['qcurve opt pair!] ; Quadratic bezier curve - pair! is control-point
-		line-format: ['line-width integer! | 'pen [color-word | tuple] | 'dashed | 'double] ; `dashed` is experimental, 
-			does not produce good result now 
+		shape-spec: [line-spec | rel-line-spec | rel-spline-spec | ortho-line-spec | arc-spec | curve-spec | qcurve-spec]
+		line-spec: [['line | 'spline] any pair!] 			; intermediate points only - start- and end-points are automatically given
+		rel-line-spec: [quote 'line any ['_ | pair!]] 		; `_` - automatically computed legs, 
+															; pair!s are relative, start/end-points are automatic
+		rel-spline-spec: [quote 'spline any [pair! | '_]] 	; as above, pair!s are control-points
+		ortho-line-spec: [['hline | 'vline] integer!] 		; relocates to-node to the endpoint of ortho-line
+		arc-spec: ['arc opt 'sweep] 						; if `sweep` is present, arc is drawn clockwise, otherwise counterclockwise
+		curve-spec: ['curve opt [2 pair!]] 					; cubic bezier curve - pair!-s are control-points
+		qcurve-spec: ['qcurve opt pair!] 					; quadratic bezier curve - pair! is control-point
+		line-format: ['line-width integer! | 'pen [color-word | tuple] | ['line-join | 'line-cap] word! | 'dashed | 'double] 
+															; `dashed` is experimental, does not produce good result now 
 		arrow-spec ['arrow opt ['closed | integer! | pair! | arrow-block]] ; TBD add `shape` for custom shape
-		arrow-block: [any [integer! | pair! | 'closed]] ; integer for optional angle, pair! for dimensions (x--length , y--half-width)
+		arrow-block: [any [integer! | pair! | 'closed]] 	; integer for optional angle, pair! for dimensions (x--length , y--half-width)
+		move-attr: [opt 'forward]							; `forward` moves connectors before the targeted panel/node (useful e.g. with `each`)
+		force-attr: [some [
+			'radius integer! 								; distance from node to connected nodes (in pixels)
+		  |	['attract | 'repulse] [integer! | float!] 		; attractive and repulsive forces coeficients (~ 0.1 - 5)
+		  |	'coef integer!									; another coeficient for repulsive force (currently 10000 or 1000)
+		]]
 	}
 ]
+;probe system/options
+;probe system/standard
+;probe system/script
 context [
-	line2: l2: none
-	set 'snakeline func [lines radius /vertical /horizontal /local line1 l1 a1 a2][
+	;line2: l2: none
+	set 'snakeline function [lines radius /vertical /horizontal /extern line2 l2][
 		collect [
 			forall lines [
 				either 1 < length? lines [
@@ -74,16 +95,16 @@ context [
 						all [not vertical even? index? lines]
 					]
 					l1: lines/1 l2: lines/2
-					keep line1 
+					keep line1
 					
 					; Make room for arcs
-					cf: pick [1 2] head? lines
-					keep l1*: either all [(short-l1?: (cf * radius) < absolute l1) l1 <> 0] [
-						l1 / (absolute l1) * ((absolute l1) - (cf * radius))
+					cf1: pick [1 2] head? lines
+					keep l1*: either all [cf1 * radius < absolute l1 l1 <> 0] [
+						l1 / (absolute l1) * ((absolute l1) - (cf1 * radius))
 					][0]
-					cf: pick [1 2] 2 = length? lines
-					l2*: either all [(short-l2?: (cf * radius) < absolute l2) l2 <> 0] [
-						l2 / (absolute l2) * ((absolute l2) - (cf * radius))
+					cf2: pick [1 2] 2 = length? lines
+					l2*: either all [cf2 * radius < absolute l2 l2 <> 0] [
+						l2 / (absolute l2) * ((absolute l2) - (cf2 * radius))
 					][0]
 					
 					; Find arc's end-point
@@ -91,17 +112,17 @@ context [
 					l2': either 0 = l2 [1][l2 / absolute l2]
 					either line1 = 'hline [
 						a: as-pair l1' l2'
-						r1: min radius max 0 (absolute l1) / 2
-						r2: min radius max 0 (absolute l2) / 2
+						r1: min radius max 0 (absolute l1) / cf1
+						r2: min radius max 0 (absolute l2) / cf2
 					][
 						a: as-pair l2' l1'
-						r2: min radius max 0 (absolute l1) / 2
-						r1: min radius max 0 (absolute l2) / 2
+						r2: min radius max 0 (absolute l1) / cf1
+						r1: min radius max 0 (absolute l2) / cf2
 					]
 					keep ['arc] keep a * as-pair r1 r2
 
-					keep radius + (radius - r2 * 5) 		; To avoid bumps in case of strighter lines
-					keep radius + (radius - r1 * 5) 
+					keep r2*: radius + (radius - r2 * 5) 		; To avoid bumps in case of strighter lines
+					keep r1*: radius + (radius - r1 * 5) 
 					keep 0
 					if any [
 						all [line1 = 'hline a/1 = a/2]
@@ -115,7 +136,7 @@ context [
 	]
 ]
 
-context [
+diagram-ctx: context [
 	test: make face! [type: 'area size: 100x100]
 	;pos-text: func [text][
 	;	sz: size-text/with
@@ -126,25 +147,116 @@ context [
 	default-arrow: 10x5
 	default-endsize: 15
 	line-width: pen: none
+	spacing*: 10x10
 	add-space: 0
 	points: [center top bottom left right top-left top-right bottom-left bottom-right]
 	;space: none
+	lim: func [:dim face][face/offset/:dim + face/size/:dim]
+	default-attract: .9;.55
+	default-repulse: .37
+	default-coef: 10000
+	default-radius: 30			; for force
+	
+	reconnect: function [node][
+		if c: node/options/to [
+			foreach d c [
+				unless d/options/shape/1 = 'blank [
+					l: find/tail d/draw 'line 
+					l/1: node/offset + (node/size / 2)
+				]
+			]
+		]
+		if c: node/options/from [
+			foreach d c [
+				unless d/options/shape/1 = 'blank [
+					l: find/tail d/draw 'line 
+					l/2: node/offset + (node/size / 2)
+				]
+			]
+		]
+	]
+	randomize: function [nodes][
+		foreach node nodes/pane [
+			if all [
+				node/options
+				none? node/options/at-offset
+			][
+				node/offset: as-pair first j: random nodes/size second j
+				reconnect node
+			]
+		]
+	]
+	calc-forces: function [face][
+		foreach r face/pane [
+			if all [
+				r/options
+				none? r/options/at-offset
+			][
+				f: 0x0
+				foreach e face/pane [
+					if all [
+						e/options
+						none? e/options/at-offset
+						not same? e r
+					][
+						dif: (e/offset + (e/size / 2)) - (r/offset + (r/size / 2))
+						if dif = 0x0 [dif: 0x1]
+						ang: arctangent2 dif/y dif/x
+						dis: sqrt (dif/x ** 2) + (dif/y ** 2) 
+						either any [
+							all [
+								r/options/to-nodes
+								node: find r/options/to-nodes e
+								conn: r/options/to/(index? node)
+							]
+							all [
+								r/options/from-nodes
+								node: find r/options/from-nodes e
+								conn: r/options/from/(index? node)
+							]
+						][
+							radius: any [all [force: conn/options/force force/radius] default-radius]
+							attract: any [all [force: conn/options/force force/attract] default-attract]
+							if 0.0 = d: dis - radius [d: .01]
+							s: log-2 da: absolute d
+							s: d / da * s * attract
+							;stp: as-pair s * cosine ang s * sine ang
+							;f: f + stp
+						][
+							repulse: any [all [force: conn/options/force force/repulse] default-repulse]
+							coef: any [all [force: conn/options/force force/coef] default-coef]
+							d: coef / dis
+							s: log-10 da: absolute d 
+							s: repulse * negate d / da * s
+						]
+						stp: as-pair s * cosine ang s * sine ang
+						f: f + stp
+					]
+				]
+				if all [
+					find r/options 'to 
+					r/offset >= (mn: r/parent/size / 3) 
+					r/offset <= (mn * 2 - r/size)
+				] [f: min 1x1 max -1x-1 f]
+				r/offset: r/offset + f
+				reconnect r
+			]
+		]
+	]
 	
 	extend system/view/VID/styles [
 		diagram: [
 			template: [
 				type: 'panel
+				draw: copy []
 				actors: [
-					;on-create: func [face][
+					;on-create: func [face][probe "cr-dia1"
 					;	mx: face/size probe face/options
 					;	node-cnt: 0			; Restart node counting for current diagram
 					;]
-					pos: none
+					pos: ofs: brd: tri: none
 					on-created: func [face event /local line-width pen corner pane mx mv][
-						
-						if face/options/style <> 'diagram [			; For easy finding
-							append face/options [parent-style: diagram]
-						]
+						;probe "cr-dia2"
 						; Move connect-lines behind nodes 
 						; Currently disabled, may be conditional enabling? TBD
 						if no [
@@ -158,8 +270,7 @@ context [
 								]
 							]
 						]
-						
-						
+		
 						; Make caption
 						;if face/text [
 						;	insert find face/parent/pane face make face! [
@@ -182,7 +293,7 @@ context [
 							face/options/drag 
 							face/options/wheel 
 							face/options/navigate
-							face/options/zoom
+							;face/options/zoom
 						]][
 							mx: face/size 
 							mv: false
@@ -225,7 +336,7 @@ context [
 								face/options/drag 
 								face/options/wheel 
 								face/options/navigate
-								face/options/zoom
+								;face/options/zoom
 							][
 								found: find face/parent/pane face
 								;ofs: face/offset
@@ -264,6 +375,7 @@ context [
 								]
 							]
 						]
+						
 						; Draw border
 						if border: face/options/border [
 							switch type?/word border [
@@ -272,7 +384,7 @@ context [
 								block! [reduce bind border :on-created]
 							]
 							if issue? pen [pen: to-tuple pen]
-							face/draw: compose [fill-pen glass pen black line-width 1 box 0x0 (face/size - 1) 10]
+							face/draw: compose [fill-pen glass pen black line-width 1 brd: box 0x0 (face/size - 1) 10]
 							case/all [
 								line-width [face/draw/line-width: line-width]
 								pen [face/draw/pen: pen]
@@ -282,81 +394,178 @@ context [
 								]
 							]
 						]
+
+						; Enable resizing
+						if face/options/resize [
+							insert face/draw compose [
+								fill-pen 0.0.0.254 pen gray tri: triangle 
+								(as-pair face/size/x - 1 face/size/y - 10) 
+								(face/size - 1) 
+								(as-pair face/size/x - 10 face/size/y - 1)
+							]
+							;probe face/draw
+						]
+						
 						;]
+						if face/options/force [randomize face]
 						show face/parent
 					]
+					;on-time: function [face event][calc-forces face]
 					on-drag: function [face event][]
 					on-wheel: function [face event][]
 					on-down: function [face event][]
-					on-over: function [face event][]
+					on-over: function [face event /local df s][]
 					on-up: function [face event][]
 					on-key-down: function [face event][]
 				]
 			]
-			init: [
+			init: [;probe "dia1"
+				if face/options/style <> 'diagram [			; For easy finding
+					append face/options [parent-style: diagram]
+				] 
 				add-space: either all [face/options add-sp: face/options/add][add-sp][0]
 				if all [face/extra face/extra/size not any [
 					face/options/drag 
 					face/options/wheel 
 					face/options/navigate
-					face/options/zoom
+					;face/options/zoom
 				]][
 					face/size: face/extra/size			; Hard size, no heuristics will be applied
 				]
-				if all [face/options face/options/drag] [
-					append face/options [drag-on: 'down]
-					append body-of :face/actors/on-drag bind copy [
-						face/offset/x: min 0 max face/parent/size/x - face/size/x face/offset/x 
-						face/offset/y: min 0 max face/parent/size/y - face/size/y face/offset/y
-						show face 'end
-					] :face/actors/on-drag
-					append body-of :face/actors/on-down bind bind [system/view/auto-sync?: off pos: face/offset] face/actors :face/actors/on-down
-				]
-				if all [face/options face/options/wheel] [
-					append body-of :face/actors/on-wheel bind copy/deep [
-						case [
-							event/ctrl? [
-								face/offset/x: min 0 max 
-									face/parent/size/x - face/size/x 
-									face/offset/x + (10 * event/picked)
+				if opts*: face/options [
+					case/all [
+						opts*/drag [
+							append face/options [drag-on: 'down]
+							append body-of :face/actors/on-drag bind copy [
+								face/offset/x: min 0 max face/parent/size/x - face/size/x face/offset/x 
+								face/offset/y: min 0 max face/parent/size/y - face/size/y face/offset/y
+								show face 'end
+							] :face/actors/on-drag
+							append body-of :face/actors/on-down bind bind [
+								system/view/auto-sync?: off pos: face/offset
+							] face/actors :face/actors/on-down
+						]
+						opts*/wheel [
+							append body-of :face/actors/on-wheel bind copy/deep [
+								case [
+									event/ctrl? [
+										face/offset/x: min 0 max 
+											face/parent/size/x - face/size/x 
+											face/offset/x + (10 * event/picked)
+									]
+									event/shift? []
+									true [
+										face/offset/y: min 0 max 
+											face/parent/size/y - face/size/y 
+											face/offset/y + (10 * event/picked)
+									]
+								]
+								show face 'end
+							] :face/actors/on-wheel
+						]
+						opts*/navigate [
+							append body-of :face/actors/on-key-down bind [
+								step: 0x0
+								mn: face/parent/size - face/size
+								fo: face/offset
+								switch event/key [
+									up [step/y: min 0 - fo/y 10]
+									down [step/y: max mn/y - fo/y -10]
+									left [step/x: min 0 - fo/x 10]
+									right [step/x: max mn/x - fo/x -10]
+									page-up [step/y: min 0 - fo/y face/parent/size/y]
+									page-down [step/y: max mn/y - fo/y 0 - face/parent/size/y]
+									home [step: 0x0 - fo]
+									end [step: mn - fo]
+								]
+								face/offset: face/offset + step
+							] :face/actors/on-key-down
+							set-focus face
+						]
+						;if all [face/options face/options/zoom][
+						;	face/draw: [scale 1 1]
+						;	append body-of :face/actors/on-wheel bind [
+						;		if event/shift? [
+						;			face/draw/2: face/draw/3: face/draw/2 + (event/picked * .05)
+						;		]
+						;	] :face/actors/on-wheel
+						;]
+						opts*/resize [
+							either block? flags: face/flags [
+								append flags 'all-over
+							][
+								face/flags: either flags [
+									append to-block flags 'all-over
+								]['all-over]
 							]
-							event/shift? []
-							true [
-								face/offset/y: min 0 max 
-									face/parent/size/y - face/size/y 
-									face/offset/y + (10 * event/picked)
+							append body-of :face/actors/on-down bind bind [
+								system/view/auto-sync?: off 
+								ofs: event/offset
+								
+							] face/actors :face/actors/on-down
+							append body-of :face/actors/on-over bind bind [
+								if event/down? [
+									df: event/offset - ofs
+									face/size: face/size + df
+									if brd [brd/3: face/size - 1]
+									tri/2: face/size - 1x10
+									tri/3: face/size - 1
+									tri/4: face/size - 10x1
+									
+									pane: face/pane 
+									max-y: 0
+									max-x: 0 
+									cur-x: 10
+									cur-y: 10
+									
+									forall pane [
+										if all [2 < length? pane not find pane/1/options 'connect][
+											max-y: max max-y lim y pane/1
+											max-x: max max-x lim x pane/1
+											either face/options/direction = 'vertical [
+												pane/3/offset: either face/size/y - pane/3/size/y - spacing*/y < lim y pane/1 [
+													max-y: 0
+													as-pair cur-x: max-x + spacing*/x spacing*/y
+												][
+													as-pair cur-x max-y + spacing*/y
+												]
+											][
+												pane/3/offset: either face/size/x - pane/3/size/x - spacing*/x < lim x pane/1 [
+													max-x: 0
+													as-pair spacing*/x cur-y: max-y + spacing*/x
+												][
+													as-pair max-x + spacing*/x cur-y 
+												]
+											]
+										]
+									]
+									
+									ofs: event/offset
+									show face
+								]
+							] face/actors :face/actors/on-over
+							;probe length? face/pane
+							foreach fc face/pane [
+								if find fc/options 'connect [put fc/options 'bound true]
 							]
 						]
-						show face 'end
-					] :face/actors/on-wheel
+						;block? anim: opts*/animate [
+						;	probe :face/actors/on-down
+							;anim*: copy []
+							;if block? on-time: anim/tick [
+							;	append anim* compose/only [on-time (tick)]
+							;]
+							;if rate: anim/rate [
+								
+							;]
+						;]
+					]
 				]
-				if all [face/options face/options/navigate][
-					append body-of :face/actors/on-key-down bind [
-						step: 0x0
-						mn: face/parent/size - face/size
-						fo: face/offset
-						switch event/key [
-							up [step/y: min 0 - fo/y 10]
-							down [step/y: max mn/y - fo/y -10]
-							left [step/x: min 0 - fo/x 10]
-							right [step/x: max mn/x - fo/x -10]
-							page-up [step/y: min 0 - fo/y face/parent/size/y]
-							page-down [step/y: max mn/y - fo/y 0 - face/parent/size/y]
-							home [step: 0x0 - fo]
-							end [step: mn - fo]
-						]
-						face/offset: face/offset + step
-					] :face/actors/on-key-down
-					set-focus face
-				]
-				if all [face/options face/options/zoom][
-					face/draw: [scale 1 1]
-					append body-of :face/actors/on-wheel bind [
-						if event/shift? [
-							face/draw/2: face/draw/3: face/draw/2 + (event/picked * .05)
-						]
-					] :face/actors/on-wheel
-				]
+				
+				;probe reduce bind [direction current global? below? max-sz opts spec] :layout
+				;probe face/text
+				;probe face/options
+				;probe "dia2"
 			]
 		]
 		node: [
@@ -371,11 +580,11 @@ context [
 						pos: (face/size / 2) - (sz / 2) 
 						change skip tail face/draw -2 reduce [pos face/text]
 					]
-					;on-create: func [face][
+					;on-create: func [face][probe "cr-node1"
 					;	node-cnt: node-cnt + 1			; Enumerate nodes for easy referencing
 					;	set to-word rejoin ["node" node-cnt] face
 					;]
-					on-created: function [face event][
+					on-created: function [face event][;probe "cr-node2"
 						case [
 							rt: face/options/rt [
 								pos: face/offset + 3
@@ -393,7 +602,8 @@ context [
 					on-down: func [face event][] 		; Waiting for links
 				]
 			]
-			init: [
+			init: [ ;probe "node1"
+				spacing*: spacing
 				unless face/options [face/options: make block! 10]
 				if face/options/style <> 'node [					; For easy finding
 					append face/options copy [parent-style: node]
@@ -489,6 +699,7 @@ context [
 					]
 				]
 				face/draw: draw*
+				;probe "node2"
 			]
 		]
 		connect: [
@@ -567,7 +778,7 @@ context [
 									]
 								]
 							]
-							arc []
+							arc [] ; TBD
 							curve []
 							qcurve []
 						]
@@ -739,17 +950,16 @@ context [
 							ofs + face/offset + (face/size / 2)
 						]
 					]
+					;on-create: func [f e][probe "cr-conn1"]
 					on-created: function [
 						face 
 						event 
 						/local path ofs start-set? end-set? elem 
 						/extern start-pos end-pos distance shape draw
-					][
-						if face/options/style <> 'connect [			; For easy finding
-							append face/options [parent-style: connect]
-						]
-						
+					][;probe "cr-conn2"
 						face/size: face/parent/size
+						
+						;if face/data [probe face/data]
 						
 						; Get starting node
 						unless all [
@@ -767,7 +977,7 @@ context [
 										reduce ['offset point/1 'size 0x0]
 									]
 								]
-							]
+							] 
 						][
 							pane: find face/parent/pane face
 							until [
@@ -779,6 +989,7 @@ context [
 							]
 							start: first pane
 						]
+						
 						; Get ending node
 						unless all [
 							face/data
@@ -794,10 +1005,20 @@ context [
 										point: find/tail to 'point
 										reduce ['offset point/1 'size 0x0]
 									]
+									all [
+										each: find/tail to 'each
+										block? each/1 
+										each/1				; bunch of provided styles/nodes
+									]
+									;all [
+									;	to-node: find to object!
+									;	to-node/1
+									;]
 								]
 							]
 						][
 							pane: find face/parent/pane face
+							;print ["qw" index? pane pane/2/type]
 							until [
 								pane: next pane 
 								not any [
@@ -806,10 +1027,90 @@ context [
 								]
 							]
 							end: first pane
+							if not end/parent [end/parent: face/parent]
+							;prin ["par: "] print end/parent/type
+						]
+						
+						; To each?
+						if all [to each: find/tail to 'each][
+							case [
+								all [end/pane not empty? pane: end/pane][
+									if 1 < length? pane [
+										found: find/tail face/parent/pane face
+										pane: next pane 
+										data*: copy/deep face/data
+										opts*: face/options
+										change find data*/to 'each to-get-word 'ob
+										until [
+											ob: pane/1
+											insert found layout/only dia [
+												connect forward with [data: data* options: opts*]
+											]
+											pane: next pane 
+											tail? pane
+										]
+										end: end/pane/1
+									]
+								]
+								block? each/1 [
+									parent-opts: any [face/parent/options face/parent/options: copy []]
+									move/part find face/options 'styles parent-opts 2
+									styles: face/parent/options/styles
+									
+									cnt: 0
+									found: find/tail face/parent/pane face
+									data*: copy/deep face/data
+									opts*: face/options
+									remove/part find data*/to 'each 2
+									parse each/1 [
+										some [(cnt: cnt + 1 w: i: none)
+											set i integer! set nod word! ( 
+												if cnt = 1 [
+													found: insert found layout/only/styles dia compose [(nod)] styles
+													end: found/-1
+												]
+												found: insert found layout/only/styles dia append/dup copy [] compose/deep/only [
+													connect with [data: (data*) options: (opts*)] (nod) 
+												] either cnt = 1 [i - 1][i] styles
+											)
+										|	word! opt [set w string!](
+												either cnt = 1 [
+													found: insert found layout/only/styles dia compose [(nod) (any [w []])] styles
+													end: found/-1
+												][
+													found: insert found layout/only/styles dia compose/deep [
+														connect with [data: data* options: opts*] (nod) (any [w []])
+													] styles
+												]
+											)
+										|	get-word! ()
+										]
+									]
+								]
+							]
+						]
+						
+						; Register connections to nodes  ;NB! Only if `bound`?
+						either start/options/to [
+							append start/options/to face
+							append start/options/to-nodes end
+						][
+							put start/options 'to append copy [] face
+							put start/options 'to-nodes append copy [] end
+						]
+						either end/options/from [
+							append end/options/from face
+							append end/options/from-nodes start
+						][
+							put end/options 'from append copy [] face
+							put end/options 'from-nodes append copy [] start
 						]
 						
 						; Infer direction
-						dir: pick [vertical horizontal] make logic! all [face/parent/options face/parent/options/vertical]
+						dir: pick [vertical horizontal] make logic! all [
+							face/parent/options 
+							face/parent/options/vertical
+						]
 						if all [face/data hint: face/data/hint] [
 							switch type?/word hint [
 								lit-word! word! [
@@ -829,6 +1130,7 @@ context [
 						vertical?: dir = 'vertical
 						
 						; Find starting- and ending-points
+						;prin ["hi" start/parent/type] prin [" " face/parent/type] print [" " end/parent/type "ho"]
 						either any [start/parent = end/parent block? start block? end] [
 							start-pos: start/offset + (start/size / 2)
 							end-pos: end/offset + (end/size / 2)
@@ -844,6 +1146,7 @@ context [
 							ofs: either ofs: find from pair! [ofs/1][0x0]
 							unless empty? start-point: intersect from points [
 								start-set?: yes
+								put face/options 'start-point first start-point
 								switch first start-point [
 									top [start-pos/y: start-pos/y - half/y]
 									bottom [start-pos/y: start-pos/y + half/y]
@@ -856,6 +1159,9 @@ context [
 									;center []
 								]
 							]
+							if face/options/bound [
+								put face/options 'start-ofs ofs
+							]
 						]
 						unless start-set? [
 							either vertical? [
@@ -865,19 +1171,19 @@ context [
 							]
 						]
 						if ofs [start-pos: start-pos + ofs] ofs: none
-						
+
 						; Adjust end/offset for `hline`/`vline`
-						orto?: none
+						ortho?: none
 						if all [shape: face/options/shape find [hline vline] shape/1][
 							if not len: pick shape 2 [
 								diff: end/offset - start-pos
 								len: either shape/1 = 'hline [diff/x][diff/y]
 							]
 							step: either shape/1 = 'hline [as-pair len 0][as-pair 0 len]
-							orto?: shape/1
+							ortho?: shape/1
 							end/offset: end-pos: start-pos + step
 						]
-
+						
 						; End-point
 						half: end/size / 2
 
@@ -885,37 +1191,42 @@ context [
 							ofs: either ofs: find to pair! [ofs/1][0x0]
 							unless empty? end-point: intersect to points [
 								end-set?: yes
+								put face/options 'end-point first end-point
 								switch first end-point [
-									top [either orto? [
+									top [either ortho? [
 										end/offset/x: end-pos/x - half/x
 									][	end-pos/y: end-pos/y - half/y]]
-									bottom [either orto? [
+									bottom [either ortho? [
 										end/offset: end-pos - as-pair half/x end/size/y
 									][	end-pos/y: end-pos/y + half/y]]
-									left [either orto? [
+									left [either ortho? [
 										end/offset/y: end-pos/y - half/y
 									][	end-pos/x: end-pos/x - half/x]]
-									right [either orto? [
+									right [either ortho? [
 										end/offset: end-pos - as-pair end/size/x half/y
 									][	end-pos/x: end-pos/x + half/x]]
-									top-left [if not orto? [end-pos: end/offset]]
-									top-right [either orto? [
+									top-left [if not ortho? [end-pos: end/offset]]
+									top-right [either ortho? [
 										end/offset/x: end-pos/x - end/size/x
 									][	end-pos: 1x-1 * half + end-pos]]
-									bottom-left [either orto? [
+									bottom-left [either ortho? [
 										end/offset/y: end-pos - end/size/y
 									][	end-pos: -1x1 * half + end-pos]]
-									bottom-right [either orto? [
+									bottom-right [either ortho? [
 										end/offset: end-pos - end/size
 									][	end-pos: half + end-pos]]
 									;center []
 								]
 							]
+							if face/options/bound [
+								put face/options 'end-ofs ofs
+							]
 						]
+						
 						unless end-set? [
 							either vertical? [
 								case [
-									not orto? [end-pos/y: end-pos/y - half/y]
+									not ortho? [end-pos/y: end-pos/y - half/y]
 									shape/1 = 'vline [
 										either negative? len [
 											end/offset: end-pos - as-pair half/x end/size/y
@@ -929,8 +1240,8 @@ context [
 								]
 							][
 								case [
-									not orto? [end-pos/x: end-pos/x - half/x]
-									orto? = 'hline [
+									not ortho? [end-pos/x: end-pos/x - half/x]
+									ortho? = 'hline [
 										either negative? len [
 											end/offset: end-pos - as-pair end/size/x half/y
 										][	end/offset/y: end-pos/y - half/y]
@@ -945,11 +1256,58 @@ context [
 						]
 						if ofs [end-pos: end-pos + ofs] 
 						
+						;if face/options/forward [
+						;	me: find face/parent/pane face
+						;	swap me next me
+						;]
+						me: find face/parent/pane face
+						case [
+							face/options/forward [
+								pane: me
+								until [
+									pane: next pane
+									any [
+										pane/1/options/style <> 'connect
+										pane/1/options/parent-style <> 'connect
+									]
+								]
+								swap me pane
+							]
+							face/options/backward [
+								pane: me
+								until [
+									pane: back back pane
+									any [
+										pane/1/options/style <> 'connect
+										pane/1/options/parent-style <> 'connect
+									]
+								]
+								swap pane me
+							]
+							face/options/back [
+								;print [length? me length? face/parent/pane index? me index? face/parent/pane]
+								;prin [index? me ": "]
+								move me head face/parent/pane
+								;print [index? me "."]
+							]
+							face/options/front [
+								move me tail me
+							]
+						]
+						;--------------
+						
+						if face/options/bound [
+							put face/options 'start-offset start/offset
+							put face/options 'end-offset end/offset
+							put face/options 'start-point either start-set? [first start-point]['center]
+							put face/options 'end-point either end-set? [first end-point]['center]
+						]
+						
 						distance: end-pos - start-pos
 
 						df: as-pair either 0 = distance/x [0][distance/x / absolute distance/x] ; Sector (avoid division by 0)
 									either 0 = distance/y [0][distance/y / absolute distance/y] ; e.g. 1x0, 1x-1
-						diff: distance - (df * start/size / 2) - (df * end/size / 2)			; Distance between corners
+						;diff: distance - (df * start/size / 2) - (df * end/size / 2)			; Distance between corners
 						
 						; Prepare draw-block
 						draw: copy [pen black line-width 1 text 0x0 "" shape []]
@@ -969,6 +1327,7 @@ context [
 						; Draw shape
 						either shape: face/options/shape [
 							switch first shape [
+								blank []
 								line spline [
 									change/part find draw 'shape compose [
 										(first shape) (start-pos) (next shape) (end-pos)
@@ -1080,6 +1439,7 @@ context [
 										][reduce [rest/x rest/y]]
 									]
 									append lines path
+									;probe lines
 								]
 								vertical? [
 									repend lines [
@@ -1104,10 +1464,10 @@ context [
 							; Draw snakeline
 							insert/dup draw/shape reduce ['move start-pos] 2
 							knee: any [face/options/knee default-knee]
-							either vertical? [
-								insert at draw/shape 3 snakeline/vertical lines knee
+							insert at draw/shape 3 either vertical? [
+								snakeline/vertical lines knee
 							][
-								insert at draw/shape 3 snakeline lines knee
+								snakeline lines knee
 							]
 						]
 						
@@ -1222,9 +1582,16 @@ context [
 					]
 				]
 			]
-			init: [
+			init: [;probe "conn1"
 				at-offset: 0x0 
 				;print ["spacing:" spacing]
+				if all [face/options face/options/style <> 'connect] [			; For easy finding
+					append face/options [parent-style: connect]
+				]
+				if all [face/data face/data/to each: face/data/to/each block? each][
+					put face/options 'styles local-styles
+				]
+				;probe "conn2"
 			]
 		]
 	]
@@ -1241,6 +1608,13 @@ context [
 		]
 	|	'point pair!
 	]
+	anim-block: [
+		ahead block! into anim-block
+	|	some [
+		  'tick block!
+		| 'rate [integer! | time!] 
+		]
+	]
 	
 	diagram-rule: [s:
 		opt [if (all [set-word? s/-2 'style = s/-3]) (
@@ -1251,19 +1625,20 @@ context [
 				[ 'border [
 					  integer! | block! | tuple! | issue!
 					| set clr word! if (find [issue! tuple!] type?/word attempt [get clr])
-					] 
+					]
+				| 'animate anim-block
 				] (
 				  append opts copy/part d 2
 				)
-			|	[ pair! (append extra append copy [size] d/1) 
-				| integer! (append extra append copy [width] d/1)
-				| ['width | 'height] integer! (append extra copy/part d 2)
+			|	[ pair! (append extra append copy [size] d/1) 				; predetermined size
+				| integer! (append extra append copy [width] d/1)			; predetermined width
+				| ['width | 'height] integer! (append extra copy/part d 2)	; predetermined dim
 				]
-			|	'add [integer! | pair!] (append opts copy/part d 2)		; addition to calculated size
-			|	[ 'vertical | 'horizontal | 'radial | 'border] (
+			|	'add [integer! | pair!] (append opts copy/part d 2)			; addition to calculated size
+			|	['vertical | 'horizontal | 'force | 'radial] ( ;'border | 			; layout type
 				  append opts append copy/part d 1 true
 				)  
-			| 	['drag | 'wheel | 'navigate] ( ;TBD | 'scroll | 'zoom | 'resize | 'collapse | 'collapsible] (
+			| 	['drag | 'wheel | 'navigate | 'resize] ( ;TBD | 'scroll | 'zoom | 'collapse | 'collapsible] (
 				  append opts append copy/part d 1 true
 				)  
 			] s2: (
@@ -1271,6 +1646,7 @@ context [
 				unless empty? extra [s: insert s compose/only [extra (extra)]]
 				unless empty? opts [s: insert s compose/only [options (opts)]]
 			) :s
+			|	(s: insert s [options [horizontal: #[true]]]) :s
 		]
 	]
 	connect-rule: [s: 
@@ -1280,7 +1656,7 @@ context [
 		opt [s: (opts: make block! 10 data: make block! 10)
 			some [d:
 			  ['to | 'from] d3: [
-				1 3 [position | get-word!] d2: (
+				1 3 [position | get-word! | 'each opt block!] d2: ( ; block may contain [some [integer! word! | word! | get-word!]]
 				append data append/only copy/part d 1 copy/part d3 d2
 			  )
 			  | block! d2: (
@@ -1297,12 +1673,17 @@ context [
 			  | 'curve opt [2 pair!]
 			  | 'qcurve opt pair!
 			  | 'shape block!
+			  | 'blank
 			  ] d2: (
 				append opts append/only copy [shape] copy/part d d2
 			  )
-			| ['arrow | 'dashed | 'double] (
+			| ['arrow | 'dashed | 'double | 'forward | 'backward | 'front | 'back] (
 				append opts append copy/part d 1 true
 			  ) 
+			| ['force opt block!] d2: (
+				append opts 'force
+				append/only opts either block? d2/-1 [d2/-1][true]
+			  )
 			] s2: (
 				remove/part s s2
 				unless empty? data [s: insert s compose/only [data (data)]]
@@ -1317,8 +1698,7 @@ context [
 		some [d:
 			[
 			  'box opt pair! opt integer! 
-			| 'diamond opt pair! 
-			| 'ellipse opt pair! 
+			| ['diamond | 'ellipse] opt pair! 
 			] d2: (append opts compose/only [shape: (copy/part d d2)])
 		| 	[
 			  'border skip
@@ -1330,14 +1710,14 @@ context [
 			s: change/part s compose/only [options (opts)] s2
 		) :s
 	]
-	set 'dia func [blk /local in-dia?][
+	set 'dia func [blk][
 		;node-cnt: 0
 		clear next diagram-styles
 		clear next connect-styles
 		clear next node-styles
 		parse blk rule: [
 			some [
-				  diagram-styles (in-dia?: yes) diagram-rule
+				  diagram-styles diagram-rule
 				| node-styles node-rule
 				| connect-styles connect-rule
 				| ahead block! into rule
@@ -1348,233 +1728,290 @@ context [
 	]
 ]
 
-;Examples
-comment [ ;Diagram example
-view probe dia [
-	size 340x550
-	;style dbl: connect extra [double]
-	below
-	diagram 320 border 1 vertical add 0x10 beige "Diagram example" [ ;  ;310x280
-		style closed-arrow: connect arrow closed from bottom to top;default 'connect 
-		space 40x40 
-		pad 60x0 
-		n1: node ellipse water font [color: white style: [bold italic] size: 12] "One" 
-		closed-arrow from bottom-left 10x-10 to top
-		return n2: node "Two" 
-		closed-arrow from bottom-right -10x-10 :n1 to top ;connect from n1 arrow closed
-		pad 5x0 n3: node diamond 60x50 "Three" 
-		connect arrow closed from left to top hint horizontal;connect double 
-		return pad 75x0 node box 50x30 "Four" 
-		connect arrow closed from :n3 to top hint horizontal;connect from n3 double line-width 2 
-		docs: node link https://www.red-lang.org/p/documentation.html "Re(a)d docs" 
-		closed-arrow from left to bottom :docs hint [horizontal -20 50]
-		connect from right to bottom hint horizontal line-width 2 pen brick arrow; ; 45 -150 -100 50 -70
-		return pad 250x-250 node ellipse 40x40 
-			border [line-width: 5 pen: gold] 
-			link https://www.red-lang.org
-			font-color red 
-			"Red"
-	] ;rate 0:0:2 on-time [unview]
-	pad 0x60
-	diagram 320 border 1 add 0x10 "Problem workout" beige [;size 330x170 
-		style step: node border gray font-color black 
-		style chk: node diamond border gray font-color black 
-		style note: node box 60x60 0 border silver font [color: gray name: "Times New Roman"]
-		space 30x20
-		origin 40x10 
-		think: step font-size 8 {Think about^/the problem}
-		connect line line-width 3 pen gray arrow ;from right to left
-		below pad -2x-2 step border [line-width 4 pen brick] "Experiment"
-		connect line hint vertical line-width 3 pen gray arrow from bottom to top; [vertical 40]
-		pad 2x2 across clr: chk "Clear?" 
-		connect from bottom to left -3x0 :think hint [vertical 20 -170] line-width 3 pen red arrow label [start 2x0] "No"
-		connect line line-width 3 pen leaf arrow from left to right label start "Yes"
-		pad -220x0 step "Implement"
-		connect line 230x70 from top 20x10 :clr ;spline 
-		at 250x40 note box 60x60 0 rt [f 8 i "Some " /i u "remarks" /u b " here" /b /f] yello ;"Some^/remarks^/here";
+;Examples/tests
+switch 0 [; 1..8
+	1 [ ;Giuseppe's, anim, resize
+		tick: 0
+		view/flags probe dia [
+			size 500x500
+			diagram vertical border 1 resize beige "Example" [
+				below space 40x40
+				style arrow: connect arrow closed
+				style proc: node rate 2 on-time [
+					if face/extra/1 = tick [face/draw/fill-pen: face/extra/3]
+					if face/extra/2 = tick [face/draw/fill-pen: white]
+				]
+				at 0x0 box rate 1 on-time [tick: tick % 5 + 1]
+				proc ellipse "start" extra [1 5 green]
+				arrow 
+				p2: proc "    first^/operation" extra [2 5 green]
+				arrow
+				p3: proc "  second^/operation" extra [3 5 green]
+				return pad 0x30
+				arrow to top hint [horizontal 20 -200]
+				p4: proc ellipse "end" extra [3 5 blue]
+			]
+		] 'resize
 	]
-]
-]
-comment [
-;system/view/auto-sync?: off
-view/tight/no-wait lay: layout probe dia [
-	size 940x800 title "Red type system" 
-	style type-box: diagram border [pen: black] init [axis: 'y]
-	style conn: connect knee 3 
-	style hlin: connect hline 20
-	style type: node border off transparent 78x20 init [axis: 'y]
-	di: diagram wheel drag height 780 add 0x5 snow [; width ;913x780
-		type-box 800 220.230.220 [
-			type-box 690x20 200.220.200 [
-				pad 300x-10 type "unset!"							]	hlin at 0x0 type "internal!" 
-				
-			type-box 690 200.220.200 [
-				type-box 580x20 180.200.180 [
-					at 300x0 type "event!"						]	hlin at 0x0 type "external!" 
-					
-				type-box 580 180.200.180 [
-					type-box 470 160.190.160 [
-						pad 280x0 	char: type "char!" 
-						handle: type "handle!"
-						pad -280x0 type-box 360 140.180.140 [
-							pad 150x0 
-							int: type "integer!"
-							float: type "float!" connect hline 40 at 0x0 type "percent!"
-														]	hlin at 0x0 type "number!" 
-						pad 280x0	time: type "time!" 
-						date: type "date!" 
-						pair: type "pair!" 
-						tuple: type "tuple!"
-								conn from :int to :char
-								conn from :int to :handle
-								conn from :float to :time
-															]	hlin at 0x0 type "scalar!"
-					type-box 470 160.190.160 [
-						type-box 360 140.180.140 [
-							pad 150x20 
-							word: type "word!"	
-								conn pad 120x-60 type "lit-word!"
-								connect hline 40 from :word type "set-word!"
-								conn from :word type "get-word!"
-														]	hlin at 0x0 type "any-word!" 
-						pad 280x0 type "refinement!"
-						type "issue!"
-															]	hlin at 0x0 type "all-word!" 
-					pad 290x0 type "datatype!"
-					type "none!"
-					type "logic!"
-					type "typeset!"
-																]	hlin at 0x0 type "immediate!" 
-				pad 300x0 type "map!"
-				type "bitset!"
-				
-				pad -300x0 type-box 580 180.200.180 [
-					pad 170x0 type "function!" 	connect hline 40 type "routine!"
-					native: type "native!" 		conn pad 120x-60 type "op!"
-												connect hline 40 from :native type "action!"
-																]	hlin at 0x0 type "any-function!"
-				type-box 580 180.200.180 [
-					pad 170x0 type "object!" 	connect hline 40 at 0x0 type "error!"
-																]	hlin at 0x0 type "any-object!"
-				type-box 580 180.200.180 [
-					type-box 470 160.190.160 [
-						pad 40x20 string: type "string!"	
-							conn pad 120x-60 type "url!" connect hline 40 type "file!"
-							connect hline 160 from :string at 0x0 type "email!"
-							conn from :string hint [horizontal 21] pad 120x0 type "tag!"
-															]	hlin at 0x0 type "any-string!"
-					pad 290x0 	conn from :string hint [horizontal 21] 
-									type "binary!"
-								conn from :string hint [horizontal 21] 
-									type "vector!"
-								type "image!"
-								
-					pad -290x0 type-box 470 160.190.160 [
-						type-box 360 140.180.140 [
-							pad 30x0 block: type "block!" 	
-								connect hline 160 at 0x0 type "hash!"
-								conn from :block hint [horizontal 21] pad 235x0 type "paren!"
-														]	hlin at 0x0 type "any-list!"
-						pad 100x0 type-box 260 140.180.140 [
-							pad 50x20 path: type "path!" 
-								conn pad 120x-60 type "lit-path!"
-								connect hline 40 from :path type "set-path!"
-								conn from :path type "get-path!"
-														]	hlin at 0x0 type "any-path!"
-						conn from :block to :path hint [horizontal 21] 
-															]	hlin at 0x0 type "any-block!"
-																]	hlin at 0x0 type "series!"
-																	] 	hlin at 0x0 type "default!" 
-																		] 	hlin at 0x0 type "any-type!"
-	] ;rate 0:0:2 on-time [unview]
-]
-]
-comment [ ;Tables
-view probe dia [
-	size 220x120
-	style table: diagram border [corner: 0] 
-	style cell: node box 50x20 0 init [spacing: 0x-1 axis: 'y]
-	style plain-cell: node box 50x20 0 border [pen: off] font-color black init [spacing: 0x-1 axis: 'y]
-	style arrow: connect knee 3 arrow closed 
-	diagram drag wheel 200x100 gray [
-		table 52x98 [
-			origin 1x1
-			t1k1: cell "key1"
-			t1k2: cell "key2"
-			cell "field1"
-			cell "field2"
-			cell "field3"
-		] ;rate 0:0:2 on-time [unview]
-		pad 30x30 table 52x98 [
-			origin 1x1 
-			t2k1: cell "key1"
-			cell "key2"
-			cell "field1"
-			cell "field2"
-			cell "field3"
+	2 [ ;2 diagrams
+		view probe dia [
+			size 340x550
+			;style dbl: connect extra [double]
+			below
+			diagram 320 border 1 vertical add 0x10 beige "Diagram example" [ ;  ;310x280
+				style closed-arrow: connect arrow closed from bottom to top;default 'connect 
+				space 40x40 
+				pad 60x0 
+				n1: node ellipse water font [color: white style: [bold italic] size: 12] "One" 
+				closed-arrow from bottom-left 10x-10 to top
+				return n2: node "Two" 
+				closed-arrow from bottom-right -10x-10 :n1 to top ;connect from n1 arrow closed
+				pad 5x0 n3: node diamond 60x50 "Three" 
+				connect arrow closed from left to top hint horizontal;connect double 
+				return pad 75x0 node box 50x30 "Four" 
+				connect arrow closed from :n3 to top hint horizontal;connect from n3 double line-width 2 
+				docs: node link https://www.red-lang.org/p/documentation.html "Re(a)d docs" 
+				closed-arrow from left to bottom :docs hint [horizontal -20 50]
+				connect from right to bottom hint horizontal line-width 2 pen brick arrow; ; 45 -150 -100 50 -70
+				return pad 250x-250 node ellipse 40x40 
+					border [line-width: 5 pen: gold] 
+					link https://www.red-lang.org
+					font-color red 
+					"Red"
+			] ;rate 0:0:2 on-time [unview]
+			pad 0x60
+			diagram 320 border 1 add 0x10 "Problem workout" beige [;size 330x170 
+				style step: node border gray font-color black 
+				style chk: node diamond border gray font-color black 
+				style note: node box 60x60 0 border silver font [color: gray name: "Times New Roman"]
+				space 30x20
+				origin 40x10 
+				think: step font-size 8 {Think about^/the problem}
+				connect line line-width 3 pen gray arrow ;from right to left
+				below pad -2x-2 step border [line-width 4 pen brick] "Experiment"
+				connect line hint vertical line-width 3 pen gray arrow from bottom to top; [vertical 40]
+				pad 2x2 across clr: chk "Clear?" 
+				connect from bottom to left -3x0 :think hint [vertical 20 -170] line-width 3 pen red arrow label [start 2x0] "No"
+				connect line line-width 3 pen leaf arrow from left to right label start "Yes"
+				pad -220x0 step "Implement"
+				connect line 230x70 from top 20x10 :clr ;spline 
+				at 250x40 note box 60x60 0 rt [f 8 i "Some " /i u "remarks" /u b " here" /b /f] yello ;"Some^/remarks^/here";
+			]
 		]
-		pad 30x20 table 52x79 [
-			origin 1x1 
-			t3k1: plain-cell font [color: black style: 'bold] "primary"
-			plain-cell "field1"
-			plain-cell "field2"
-			plain-cell "field3"
+	]
+	3 [ ;Type system, wheel, navigate
+		;system/view/auto-sync?: off
+		view/tight/no-wait lay: layout probe dia [
+			size 940x800 title "Red type system" 
+			style type-box: diagram border [pen: black] init [axis: 'y]
+			style conn: connect knee 3 
+			style hlin: connect hline 20
+			style type: node border off transparent 78x20 init [axis: 'y]
+			di: diagram wheel navigate height 780 add 0x5 snow [; width ;913x780
+				type-box 800 220.230.220 [
+					type-box 690x20 200.220.200 [
+						pad 300x-10 type "unset!"							]	hlin at 0x0 type "internal!" 
+						
+					type-box 690 200.220.200 [
+						type-box 580x20 180.200.180 [
+							at 300x0 type "event!"						]	hlin at 0x0 type "external!" 
+							
+						type-box 580 180.200.180 [
+							type-box 470 160.190.160 [
+								pad 280x0 	char: type "char!" 
+								handle: type "handle!"
+								pad -280x0 type-box 360 140.180.140 [
+									pad 150x0 
+									int: type "integer!"
+									float: type "float!" connect hline 40 at 0x0 type "percent!"
+																]	hlin at 0x0 type "number!" 
+								pad 280x0	time: type "time!" 
+								date: type "date!" 
+								pair: type "pair!" 
+								tuple: type "tuple!"
+										conn from :int to :char
+										conn from :int to :handle
+										conn from :float to :time
+																	]	hlin at 0x0 type "scalar!"
+							type-box 470 160.190.160 [
+								type-box 360 140.180.140 [
+									pad 150x20 
+									word: type "word!"	
+										conn pad 120x-60 type "lit-word!"
+										connect hline 40 from :word type "set-word!"
+										conn from :word type "get-word!"
+																]	hlin at 0x0 type "any-word!" 
+								pad 280x0 type "refinement!"
+								type "issue!"
+																	]	hlin at 0x0 type "all-word!" 
+							pad 290x0 type "datatype!"
+							type "none!"
+							type "logic!"
+							type "typeset!"
+																		]	hlin at 0x0 type "immediate!" 
+						pad 300x0 type "map!"
+						type "bitset!"
+						
+						pad -300x0 type-box 580 180.200.180 [
+							pad 170x0 type "function!" 	connect hline 40 type "routine!"
+							native: type "native!" 		conn pad 120x-60 type "op!"
+														connect hline 40 from :native type "action!"
+																		]	hlin at 0x0 type "any-function!"
+						type-box 580 180.200.180 [
+							pad 170x0 type "object!" 	connect hline 40 at 0x0 type "error!"
+																		]	hlin at 0x0 type "any-object!"
+						type-box 580 180.200.180 [
+							type-box 470 160.190.160 [
+								pad 40x20 string: type "string!"	
+									conn pad 120x-60 type "url!" connect hline 40 type "file!"
+									connect hline 160 from :string at 0x0 type "email!"
+									conn from :string hint [horizontal 21] pad 120x0 type "tag!"
+																	]	hlin at 0x0 type "any-string!"
+							pad 290x0 	conn from :string hint [horizontal 21] 
+											type "binary!"
+										conn from :string hint [horizontal 21] 
+											type "vector!"
+										type "image!"
+										
+							pad -290x0 type-box 470 160.190.160 [
+								type-box 360 140.180.140 [
+									pad 30x0 block: type "block!" 	
+										connect hline 160 at 0x0 type "hash!"
+										conn from :block hint [horizontal 21] pad 235x0 type "paren!"
+																]	hlin at 0x0 type "any-list!"
+								pad 100x0 type-box 260 140.180.140 [
+									pad 50x20 path: type "path!" 
+										conn pad 120x-60 type "lit-path!"
+										connect hline 40 from :path type "set-path!"
+										conn from :path type "get-path!"
+																]	hlin at 0x0 type "any-path!"
+								conn from :block to :path hint [horizontal 21] 
+																	]	hlin at 0x0 type "any-block!"
+																		]	hlin at 0x0 type "series!"
+																			] 	hlin at 0x0 type "default!" 
+																				] 	hlin at 0x0 type "any-type!"
+			] ;rate 0:0:2 on-time [unview]
 		]
-		
-		arrow from :t1k2 to -2x0 :t2k1 label end "con1"
-		arrow from :t1k1 to -2x0 :t3k1 hint 115 label end "con2"
 	]
-]
-]
-comment [
-if not value? 'img [
-	img: draw/transparent 21x21 [
-		fill-pen red 
-		translate 10x10 
-		polygon 0x-10 2x-5 10x-10 5x-2 10x0 5x2 10x10 2x5 0x10 -2x5 -10x10 -5x2 -10x0 -5x-2 -10x-10 -2x-5
+	4 [ ;Tables, wheel, drag
+		view probe dia [
+			size 220x120
+			style table: diagram border [corner: 0] 
+			style cell: node box 50x20 0 init [spacing: 0x-1 axis: 'y]
+			style plain-cell: node box 50x20 0 border [pen: off] font-color black init [spacing: 0x-1 axis: 'y]
+			style arrow: connect knee 3 arrow closed 
+			diagram drag wheel 200x100 gray [
+				table 52x98 [
+					origin 1x1
+					t1k1: cell "key1"
+					t1k2: cell "key2"
+					cell "field1"
+					cell "field2"
+					cell "field3"
+				] ;rate 0:0:2 on-time [unview]
+				pad 30x30 table 52x98 [
+					origin 1x1 
+					t2k1: cell "key1"
+					cell "key2"
+					cell "field1"
+					cell "field2"
+					cell "field3"
+				]
+				pad 30x20 table 52x79 [
+					origin 1x1 
+					t3k1: plain-cell font [color: black style: 'bold] "primary"
+					plain-cell "field1"
+					plain-cell "field2"
+					plain-cell "field3"
+				]
+				
+				arrow from :t1k2 to -2x0 :t2k1 label end "con1"
+				arrow from :t1k1 to -2x0 :t3k1 hint 115 label end "con2"
+			]
+		]
 	]
-]
-view probe dia [
-	size 220x220 backdrop gray
-	style cell: node box 30x20 3
-	style con: connect knee 5
-	style arr: connect knee 5 arrow
-	style linearr: connect line arrow closed
-	diagram 200x200 drag [
-		origin 50x50 space 50x50 
-		r1c1: cell r1c2: cell r1c3: cell r1c4: cell return
-		r2c1: cell r2c2: cell r2c3: cell r2c4: cell return
-		r3c1: cell r3c2: cell r3c3: cell r3c4: cell return
-		r4c1: cell r4c2: cell pad 5x0 r4c3: image img r4c4: cell return
-		r5c1: cell r5c2: cell r5c3: cell r5c4: cell 
-		
-		con from :r1c1 to :r3c2 label start "con1"
-		con from :r3c2 to top :r1c4 hint [25 -175] label [leg 3] "con2"
-		arr from :r1c4 to top :r2c2 hint [vertical 25] label [mid right] "arrow1"
-		con from left :r2c3 to top :r4c1 hint [-12 90] label [end right 2x0] "con3"
-		arr from left :r4c1 to :r2c1 hint -25 label [mid top right 2x15] "arrow2"
-		connect 'line -15x0 _ -60x0 _ -15x0 arrow closed from left :r4c3 to right :r3c1 label mid "angular"
-		linearr from bottom :r4c3 to top :r5c3
-		connect qcurve 260x200 from top-right :r4c3 to bottom-right -1x-1 :r2c3
-		connect 'spline 30x-10 -10x-50 arrow [10 8x2 closed green] from :r4c3 to :r3c4 pen red label [mid 27x-20 -5 align] "'spline"
-		connect spline 270x280 260x330 arrow [closed -10 8x2] from :r4c3 to :r5c4 label [mid 5x15 7 align] "spline"
+	5 [ ;Grid, arrows, labels, drag
+		if not value? 'img [
+			img: draw/transparent 21x21 [
+				fill-pen red 
+				translate 10x10 
+				polygon 0x-10 2x-5 10x-10 5x-2 10x0 5x2 10x10 2x5 0x10 -2x5 -10x10 -5x2 -10x0 -5x-2 -10x-10 -2x-5
+			]
+		]
+		view probe dia [
+			size 220x220 backdrop gray
+			style cell: node box 30x20 3
+			style con: connect knee 5
+			style arr: connect knee 5 arrow
+			style linearr: connect line arrow closed
+			diagram 200x200 drag [
+				origin 50x50 space 50x50 
+				r1c1: cell r1c2: cell r1c3: cell r1c4: cell return
+				r2c1: cell r2c2: cell r2c3: cell r2c4: cell return
+				r3c1: cell r3c2: cell r3c3: cell r3c4: cell return
+				r4c1: cell r4c2: cell pad 5x0 r4c3: image img r4c4: cell return
+				r5c1: cell r5c2: cell r5c3: cell r5c4: cell 
+				
+				con from :r1c1 to :r3c2 label start "con1"
+				con from :r3c2 to top :r1c4 hint [25 -175] label [leg 3] "con2"
+				arr from :r1c4 to top :r2c2 hint [vertical 25] label [mid right] "arrow1"
+				con from left :r2c3 to top :r4c1 hint [-12 90] label [end right 2x0] "con3"
+				arr from left :r4c1 to :r2c1 hint -25 label [mid top right 2x15] "arrow2"
+				connect 'line -15x0 _ -60x0 _ -15x0 arrow closed from left :r4c3 to right :r3c1 label mid "angular"
+				linearr from bottom :r4c3 to top :r5c3
+				connect qcurve 260x200 from top-right :r4c3 to bottom-right -1x-1 :r2c3
+				connect 'spline 30x-10 -10x-50 arrow [10 8x2 closed green] from :r4c3 to :r3c4 pen red label [mid 27x-20 -5 align] "'spline"
+				connect spline 270x280 260x330 arrow [closed -10 8x2] from :r4c3 to :r5c4 label [mid 5x15 7 align] "spline"
+			]
+			;rate 0:0:2 on-time [unview]
+		]
 	]
-	;rate 0:0:2 on-time [unview]
-]
-]
-comment [
-img: draw/transparent 31x31 [fill-pen red translate 15x15 polygon 0x-15 5x-5 15x0 5x5 0x15 -5x5 -15x0 -5x-5]
-view probe dia [
-	space 50x20
-	fld: field focus on-enter [append list/data face/text]
-	connect	arrow label start "<Enter>" list: text-list data []
-	connect arrow label [mid right] "<Press>" button "Check" [
-		chk/data: (last list/data) = chk/text
-	] return
-	connect arrow hint vertical to right :chk
-	;connect from point 40x50 to top hint [vertical 30] 
-	chk: check "Amazing?"
-	;connect from point 40x50 hint [vertical 30] pad -45x-20 image img
-	;rate 0:0:2 on-time [unview]
-]
+	6 [ ;Connect with normal faces
+		img: draw/transparent 31x31 [fill-pen red translate 15x15 polygon 0x-15 5x-5 15x0 5x5 0x15 -5x5 -15x0 -5x-5]
+		view probe dia [
+			space 50x20
+			fld: field focus on-enter [append list/data face/text]
+			connect	arrow label start "<Enter>" list: text-list data []
+			connect arrow label [mid right] "<Press>" button "Check" [
+				chk/data: (last list/data) = chk/text
+			] return
+			connect arrow hint vertical to right :chk
+			;connect from point 40x50 to top hint [vertical 30] 
+			chk: check "Amazing?"
+			;connect from point 40x50 hint [vertical 30] pad -45x-20 image img
+			;rate 0:0:2 on-time [unview]
+		]
+	]
+	7 [ ;`each`
+		view probe dia [diagram vertical [
+			style nod: node ellipse 50x50
+			space 30x10 pad 90x0  
+			top: nod "top" return 
+			connect to each forward 
+			dgr: diagram [
+				space 30x30 
+				one: nod "one" two: nod "two" three: nod "three" 
+			] 
+			return
+			connect from :one to each left hint vertical forward
+			pad 40x0 diagram [space 30x30 below nod "one-1" nod "one-2"]
+			connect from :three to each right hint vertical forward
+			pad -20x0 diagram [space 30x30 below nod "three-1" nod "three-2"]
+			return
+			pad 40x0 diagram [space 30x30 two-1: nod "two-1" two-2: nod "two-2"]
+			connect from :two to [:two-1 right] hint vertical
+			connect from :two to [:two-2 left] hint vertical
+		]]
+	]
+	8 [ ;Force
+		view probe dia [diagram force rate 10 on-time [diagram-ctx/calc-forces face][
+			size 500x500 
+			at 410x10 button "Randomize" [diagram-ctx/randomize face/parent]
+			style o: node ellipse 14x14 red loose  
+			style o2: node ellipse 4x4
+			b1: o "1" 
+			connect blank from [center :b1] to [center each [10 o2]]
+			connect blank from [center :b1] to [center each [35 o2]] force [radius 100]
+		]]
+	]
 ]
