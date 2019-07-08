@@ -220,8 +220,6 @@ diagram-ctx: context [
 							if 0.0 = d: dis - radius [d: .01]
 							s: log-2 da: absolute d
 							s: d / da * s * attract
-							;stp: as-pair s * cosine ang s * sine ang
-							;f: f + stp
 						][
 							repulse: any [all [force: conn/options/force force/repulse] default-repulse]
 							coef: any [all [force: conn/options/force force/coef] default-coef]
