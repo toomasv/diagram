@@ -3,7 +3,7 @@ Red [
 	Description: 	{Extends VID to allow easy diagram description}
 	Author: 		{Toomas Vooglaid}
 	Date:			31-May-2019
-	Last:			7-Jul-2019
+	Last:			9-Jul-2019
 	Version:		#0.6
 	Licence: 		"MIT"
 	RedBNF:			{
@@ -78,6 +78,9 @@ Red [
 		]]
 	}
 ]
+;probe system/options
+;probe system/standard
+;probe system/script
 context [
 	;line2: l2: none
 	set 'snakeline function [lines radius /vertical /horizontal /extern line2 l2][
@@ -224,8 +227,7 @@ diagram-ctx: context [
 							s: log-10 da: absolute d 
 							s: repulse * negate d / da * s
 						]
-						stp: as-pair s * cosine ang s * sine ang
-						f: f + stp
+						f: f + as-pair s * cosine ang s * sine ang
 					]
 				]
 				if all [
@@ -245,7 +247,7 @@ diagram-ctx: context [
 				type: 'panel
 				draw: copy []
 				actors: [
-					;on-create: func [face][probe "cr-dia1"
+					;on-create: func [face][probe "cr-dia1" probe face/options
 					;	mx: face/size probe face/options
 					;	node-cnt: 0			; Restart node counting for current diagram
 					;]
@@ -324,8 +326,10 @@ diagram-ctx: context [
 									elem/size: mx + 20
 								]
 							]
-						
-							face/size: mx + add-space;15
+							face/size: mx 
+							if all [face/options add-space: face/options/add][
+								face/size: face/size + add-space
+							]
 							
 							either any [
 								face/options/drag 
@@ -402,7 +406,8 @@ diagram-ctx: context [
 						]
 						
 						;]
-						if face/options/force [randomize face]
+						;probe face/options
+						if face/options/force [diagram-ctx/randomize face]
 						show face/parent
 					]
 					;on-time: function [face event][calc-forces face]
@@ -418,7 +423,6 @@ diagram-ctx: context [
 				if face/options/style <> 'diagram [			; For easy finding
 					append face/options [parent-style: diagram]
 				] 
-				add-space: either all [face/options add-sp: face/options/add][add-sp][0]
 				if all [face/extra face/extra/size not any [
 					face/options/drag 
 					face/options/wheel 
@@ -748,7 +752,7 @@ diagram-ctx: context [
 									]
 								]
 							]
-							line [
+							line hline vline [
 								parse find/tail draw 'line [
 									some [
 										set start pair! 
@@ -1592,7 +1596,7 @@ diagram-ctx: context [
 	]
 ]
 context [
-	default-space: 40x40
+	default-space: 40x40 ; Is not used!
 	s: s2: d: d2: data: opts: clr: none
 	node-styles: copy ['node]
 	connect-styles: copy ['connect]
@@ -2008,5 +2012,40 @@ switch 0 [; 1..8
 			connect blank from [center :b1] to [center each [10 o2]]
 			connect blank from [center :b1] to [center each [35 o2]] force [radius 100]
 		]]
+	]
+	9 [
+		view dia [
+			title "Gregg's array func"
+			diagram 620x700 border 1 [
+				space 30x30
+				pad 0x20 node ellipse "Start"
+				connect cond1: node diamond "block? size"
+				connect hline label start "Yes" dia2: diagram width 380 add 0x10 border 1 silver [
+					space 30x30
+					cond2: node diamond 120x70 {      tail?^/more-sizes:^/   next size}
+					connect hline label start "Yes" n1: node {more-sizes:^/    none}
+					connect vline 30 from [bottom :cond2] "No" n2: node {   size:^/first size}
+					connect from [bottom :n1] hint vertical to [right :n2]
+					connect vline 30 from [bottom :n2] node diamond 80x70 {    not^/integer?^/    size}
+					connect hline 30 label start "Yes" node {     cause-error script 'expect-arg^/  reduce ['array 'size type? get/any 'size]}
+				]
+				origin 10x320
+				dia3: diagram width 460 add 0x10 border 1 silver [
+					space 30x30 pad 35x0
+					at 10x10 text bold "case" 
+					cond3: node diamond 100x70 {    block?^/more-sizes^/  }
+					connect hline 30 label start "Yes" node {  append/only result array/initial more-sizes :value}
+					connect vline 30 from [bottom :cond3] to top label start "No" cond4: node diamond 100x70 {series?^/:value}
+					connect hline 30 label start "Yes" node {  loop size [append/only result copy/deep value]}
+					connect vline 30 from [bottom :cond4] to top label start "No" cond5: node diamond 100x70 {  ^/any-function?^/       :value}
+					connect hline 30 label start "Yes" node {  loop size [append/only result value]}
+					connect vline 30 from [bottom :cond5] to top label start "No" node {  append/dup result value size}
+				]
+				connect hint [vertical 210] from [bottom :cond1] to [top -80x0 :dia3] label start "No" 
+				connect from [bottom :dia2] to [top -80x0 :dia3] hint [vertical 20]
+				connect from :dia3 hint horizontal to top origin 500x550 node "result"
+				connect vline 30 from bottom to top node ellipse "End"
+			]
+		]
 	]
 ]
