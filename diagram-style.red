@@ -3,7 +3,7 @@ Red [
 	Description: 	{Extends VID to allow easy diagram description}
 	Author: 		{Toomas Vooglaid}
 	Date:			31-May-2019
-	Last:			7-Jul-2019
+	Last:			9-Jul-2019
 	Version:		#0.6
 	Licence: 		"MIT"
 	RedBNF:			{
