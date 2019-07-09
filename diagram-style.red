@@ -3,7 +3,7 @@ Red [
 	Description: 	{Extends VID to allow easy diagram description}
 	Author: 		{Toomas Vooglaid}
 	Date:			31-May-2019
-	Last:			9-Jul-2019
+	Last:			7-Jul-2019
 	Version:		#0.6
 	Licence: 		"MIT"
 	RedBNF:			{
@@ -79,7 +79,7 @@ Red [
 	}
 ]
 context [
-	;line2: l2: none
+	line2: l2: none
 	set 'snakeline function [lines radius /vertical /horizontal /extern line2 l2][
 		collect [
 			forall lines [
@@ -173,6 +173,7 @@ diagram-ctx: context [
 		]
 	]
 	randomize: function [nodes][
+		system/view/auto-sync?: off
 		foreach node nodes/pane [
 			if all [
 				node/options
@@ -182,8 +183,11 @@ diagram-ctx: context [
 				reconnect node
 			]
 		]
+		show nodes
+		system/view/auto-sync?: on
 	]
 	calc-forces: function [face][
+		system/view/auto-sync?: off
 		foreach r face/pane [
 			if all [
 				r/options
@@ -236,6 +240,8 @@ diagram-ctx: context [
 				reconnect r
 			]
 		]
+		show face
+		system/view/auto-sync?: on
 	]
 	
 	extend system/view/VID/styles [
@@ -244,7 +250,7 @@ diagram-ctx: context [
 				type: 'panel
 				draw: copy []
 				actors: [
-					;on-create: func [face][probe "cr-dia1" probe face/options
+					;on-create: func [face][probe "cr-dia1" ;probe face/options
 					;	mx: face/size probe face/options
 					;	node-cnt: 0			; Restart node counting for current diagram
 					;]
@@ -414,6 +420,7 @@ diagram-ctx: context [
 					on-over: function [face event /local df s][]
 					on-up: function [face event][]
 					on-key-down: function [face event][]
+					on-time: function [face event][]
 				]
 			]
 			init: [;probe "dia1"
@@ -555,6 +562,11 @@ diagram-ctx: context [
 								
 							;]
 						;]
+						opts*/force [
+							append body-of :face/actors/on-time bind copy/deep [
+								diagram-ctx/calc-forces face
+							] :face/actors/on-time
+						]
 					]
 				]
 				
@@ -1725,7 +1737,7 @@ context [
 ]
 
 ;Examples/tests
-switch 0 [; 1..8
+switch 0 [; 1..9
 	1 [ ;Giuseppe's, anim, resize
 		tick: 0
 		view/flags probe dia [
@@ -2000,14 +2012,14 @@ switch 0 [; 1..8
 		]]
 	]
 	8 [ ;Force
-		view probe dia [diagram force rate 10 on-time [diagram-ctx/calc-forces face][
+		view probe dia [diagram force rate 10 [;on-time [diagram-ctx/calc-forces face][
 			size 500x500 
 			at 410x10 button "Randomize" [diagram-ctx/randomize face/parent]
 			style o: node ellipse 14x14 red loose  
 			style o2: node ellipse 4x4
 			b1: o "1" 
-			connect blank from [center :b1] to [center each [10 o2]]
-			connect blank from [center :b1] to [center each [35 o2]] force [radius 100]
+			connect blank from [center :b1] to [center each [20 o2]]
+			connect blank from [center :b1] to [center each [50 o2]] force [radius 100]
 		]]
 	]
 	9 [
