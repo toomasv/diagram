@@ -78,9 +78,6 @@ Red [
 		]]
 	}
 ]
-;probe system/options
-;probe system/standard
-;probe system/script
 context [
 	;line2: l2: none
 	set 'snakeline function [lines radius /vertical /horizontal /extern line2 l2][
