@@ -3,7 +3,7 @@ Red [
 	Description: 	{Extends VID to allow easy diagram description}
 	Author: 		{Toomas Vooglaid}
 	Date:			31-May-2019
-	Last:			9-Jul-2019
+	Last:			10-Jul-2019
 	Version:		#0.6
 	Licence: 		"MIT"
 	RedBNF:			{
@@ -135,10 +135,6 @@ context [
 
 diagram-ctx: context [
 	test: make face! [type: 'area size: 100x100]
-	;pos-text: func [text][
-	;	sz: size-text/with
-	;]
-	;node-cnt: 0
 	default-corner: 10
 	default-knee: 10
 	default-arrow: 10x5
@@ -250,10 +246,6 @@ diagram-ctx: context [
 				type: 'panel
 				draw: copy []
 				actors: [
-					;on-create: func [face][probe "cr-dia1" ;probe face/options
-					;	mx: face/size probe face/options
-					;	node-cnt: 0			; Restart node counting for current diagram
-					;]
 					pos: ofs: brd: tri: none
 					on-created: func [face event /local line-width pen corner pane mx mv][
 						;probe "cr-dia2"
@@ -588,10 +580,6 @@ diagram-ctx: context [
 						pos: (face/size / 2) - (sz / 2) 
 						change skip tail face/draw -2 reduce [pos face/text]
 					]
-					;on-create: func [face][probe "cr-node1"
-					;	node-cnt: node-cnt + 1			; Enumerate nodes for easy referencing
-					;	set to-word rejoin ["node" node-cnt] face
-					;]
 					on-created: function [face event][;probe "cr-node2"
 						case [
 							rt: face/options/rt [
@@ -1570,7 +1558,7 @@ diagram-ctx: context [
 											]
 										]
 									]
-									line spline 'spline [
+									line spline 'spline hline vline [
 										last-points: skip tail draw -2
 										diff: last-points/2 - last-points/1
 										ang: to-integer arctangent2 diff/y diff/x
@@ -2018,42 +2006,45 @@ switch 0 [; 1..9
 			style o: node ellipse 14x14 red loose  
 			style o2: node ellipse 4x4
 			b1: o "1" 
-			connect blank from [center :b1] to [center each [20 o2]]
-			connect blank from [center :b1] to [center each [50 o2]] force [radius 100]
+			connect blank from [center :b1] to [center each [15 o2]]
+			connect blank from [center :b1] to [center each [40 o2]] force [radius 100]
 		]]
 	]
-	9 [
+	9 [ ;Array func flowchart
 		view dia [
 			title "Gregg's array func"
 			diagram 620x700 border 1 [
 				space 30x30
+				style conn: connect arrow [closed 8x3 black]
+				style hline: connect arrow [closed 8x3 black] hline 30 label start
+				style vline: connect arrow [closed 8x3 black] vline 30 label start
 				pad 0x20 node ellipse "Start"
-				connect cond1: node diamond "block? size"
-				connect hline label start "Yes" dia2: diagram width 380 add 0x10 border 1 silver [
+				conn cond1: node diamond "block? size"
+				hline "Yes" dia2: diagram width 380 add 0x10 border 1 silver [
 					space 30x30
 					cond2: node diamond 120x70 {      tail?^/more-sizes:^/   next size}
-					connect hline label start "Yes" n1: node {more-sizes:^/    none}
-					connect vline 30 from [bottom :cond2] "No" n2: node {   size:^/first size}
-					connect from [bottom :n1] hint vertical to [right :n2]
-					connect vline 30 from [bottom :n2] node diamond 80x70 {    not^/integer?^/    size}
-					connect hline 30 label start "Yes" node {     cause-error script 'expect-arg^/  reduce ['array 'size type? get/any 'size]}
+					hline "Yes" n1: node {more-sizes:^/    none}
+					connect arrow [closed 8x3 black] vline 30 label start from [bottom :cond2] "No" n2: node {   size:^/first size}
+					connect arrow [closed 8x3 black] from [bottom :n1] hint vertical to [right :n2]
+					connect arrow [closed 8x3 black] vline 30 label start from [bottom :n2] node diamond 80x70 {    not^/integer?^/    size}
+					connect arrow [closed 8x3 black] hline 30 label start "Yes" node {     cause-error script 'expect-arg^/  reduce ['array 'size type? get/any 'size]}
 				]
 				origin 10x320
 				dia3: diagram width 460 add 0x10 border 1 silver [
 					space 30x30 pad 35x0
 					at 10x10 text bold "case" 
 					cond3: node diamond 100x70 {    block?^/more-sizes^/  }
-					connect hline 30 label start "Yes" node {  append/only result array/initial more-sizes :value}
-					connect vline 30 from [bottom :cond3] to top label start "No" cond4: node diamond 100x70 {series?^/:value}
-					connect hline 30 label start "Yes" node {  loop size [append/only result copy/deep value]}
-					connect vline 30 from [bottom :cond4] to top label start "No" cond5: node diamond 100x70 {  ^/any-function?^/       :value}
-					connect hline 30 label start "Yes" node {  loop size [append/only result value]}
-					connect vline 30 from [bottom :cond5] to top label start "No" node {  append/dup result value size}
+					hline "Yes" node {  append/only result array/initial more-sizes :value}
+					vline from [bottom :cond3] to top "No" cond4: node diamond 100x70 {series?^/:value}
+					hline "Yes" node {  loop size [append/only result copy/deep value]}
+					vline from [bottom :cond4] to top "No" cond5: node diamond 100x70 {  ^/any-function?^/       :value}
+					hline "Yes" node {  loop size [append/only result value]}
+					vline from [bottom :cond5] to top "No" node {  append/dup result value size}
 				]
-				connect hint [vertical 210] from [bottom :cond1] to [top -80x0 :dia3] label start "No" 
+				conn hint [vertical 210] from [bottom :cond1] to [top -80x0 :dia3] label start "No" 
 				connect from [bottom :dia2] to [top -80x0 :dia3] hint [vertical 20]
-				connect from :dia3 hint horizontal to top origin 500x550 node "result"
-				connect vline 30 from bottom to top node ellipse "End"
+				conn from :dia3 hint horizontal to top origin 500x550 node "result"
+				vline from bottom to top node ellipse "End"
 			]
 		]
 	]
