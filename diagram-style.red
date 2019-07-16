@@ -6,78 +6,10 @@ Red [
 	Last:			10-Jul-2019
 	Version:		#0.6
 	Licence: 		"MIT"
-	RedBNF:			{
-		diagram: [['diagram | diagram-style] any diagram-settings any panel-settings diagram-block]
-		diagram-settings: [direction | size-spec | border-spec | funcs]
-		direction: ['vertical | 'horizontal] ; General direction for connector, default is `horizontal`
-		size-spec: [integer! | pair! | ['width | 'height] integer!] ; single integer! -- width
-		border-spec: ['border [integer! | color-spec | border-block]]
-		color-spec: [color-word | tuple!]
-		border-block: [
-			  quote line-width: integer! quote pen: [color-word | tuple!] 
-			| quote pen: [color-word | tuple!] quote line-width: integer!
-		]
-		funcs: [any ['drag | 'wheel | 'navigate]]
-		diagram-block: [any [VID-keywords | node-spec | connect-spec]]
-		
-		node-spec: [['node | node-style] any node-settings any base-settings]
-		node-settings: [shape-spec | border-spec | link-spec | rt-spec]
-		shape-spec: [box-shape | ellipse-shape | diamond-shape] ;| custom-shape ; TBD 
-		box-shape: ['box opt pair! opt integer!] ; pair! is size, integer! is corner radius
-		ellipse-shape: ['ellipse pair!] ; pair! is size
-		diamond-shape: ['diamond pair!] ; pair! is size
-		border-spec: ['border [integer! | word! | tuple! | border-block]] ; integer! is line-width, [word! | tuple!] is color
-		border-block: [
-		  'line-width integer! 'pen [word! | tuple!] 
-		| 'pen [word! | tuple!] 'line-width integer!
-		]
-		link-spec: ['link url!]
-		rt-spec: ['rt rtd-layout-block] 					; if this is given normal text should not be set
-		
-		connect-spec: [['connect | connect-style] any connect-settings any base-settings]
-		connect-settings: [from-attr | to-attr | hint-attr | label-attr | format-attr | move-attr | force-attr]
-		from-attr: ['from 1 3 [point-name | point-offset | :node-ref]]
-		to-attr: ['to 1 3 [point-name | point-offset | :node-ref | 'each opt block!]] ; `each` for several targets 
-															; inside a panel or another `diagram` (examples 7)
-															; or in provided block (example 8)
-		point-name: ['top | 'bottom | 'left | 'right | 'top-left | 'top-right | 'bottom-right | 'bottom-right | 'center]
-			; by default (i.e. horizontal direction) -- from `right` to `left`
-			; default for vertical direction -- from `bottom` to `top`
-		point-offset: pair! ; additional offset from named point
-		hint-attr: ['hint [direction | path-step | hint-spec]]
-		direction: ['vertical | 'horizontal]
-		path-step: integer!   								; length of first leg
-		hint-spec: [some [opt direction any path-step]]
-		label-attr: ['label [label-spec | label-block]]
-		label-spec: [pos-word | align | valign | position | angle | color-spec]
-		pos-word: ['start | 'end | 'mid]
-		align: ['left | 'right | 'center]
-		valign: ['top | 'bottom | 'middle]
-		position: [pair! | percent!] 							; offset from start of line or leg
-		angle: ['align | integer!]							; `align` tries to guess the angle of line, integer! sets the angle
-		label-block: [any [label-spec | 'leg integer!]]		; `leg` sets position at given int leg of segmnted connector
-		format-attr: [shape-spec | line-format | arrow-spec]
-		shape-spec: [line-spec | rel-line-spec | rel-spline-spec | ortho-line-spec | arc-spec | curve-spec | qcurve-spec]
-		line-spec: [['line | 'spline] any pair!] 			; intermediate points only - start- and end-points are automatically given
-		rel-line-spec: [quote 'line any ['_ | pair!]] 		; `_` - automatically computed legs, 
-															; pair!s are relative, start/end-points are automatic
-		rel-spline-spec: [quote 'spline any [pair! | '_]] 	; as above, pair!s are control-points
-		ortho-line-spec: [['hline | 'vline] integer!] 		; relocates to-node to the endpoint of ortho-line
-		arc-spec: ['arc opt 'sweep] 						; if `sweep` is present, arc is drawn clockwise, otherwise counterclockwise
-		curve-spec: ['curve opt [2 pair!]] 					; cubic bezier curve - pair!-s are control-points
-		qcurve-spec: ['qcurve opt pair!] 					; quadratic bezier curve - pair! is control-point
-		line-format: ['line-width integer! | 'pen [color-word | tuple] | ['line-join | 'line-cap] word! | 'dashed | 'double] 
-															; `dashed` is experimental, does not produce good result now 
-		arrow-spec ['arrow opt ['closed | integer! | pair! | arrow-block]] ; TBD add `shape` for custom shape
-		arrow-block: [any [integer! | pair! | 'closed]] 	; integer for optional angle, pair! for dimensions (x--length , y--half-width)
-		move-attr: [opt 'forward]							; `forward` moves connectors before the targeted panel/node (useful e.g. with `each`)
-		force-attr: [some [
-			'radius integer! 								; distance from node to connected nodes (in pixels)
-		  |	['attract | 'repulse] [integer! | float!] 		; attractive and repulsive forces coeficients (~ 0.1 - 5)
-		  |	'coef integer!									; another coeficient for repulsive force (currently 10000 or 1000)
-		]]
-	}
 ]
+;probe system/options
+;probe system/standard
+;probe system/script
 context [
 	line2: l2: none
 	set 'snakeline function [lines radius /vertical /horizontal /extern line2 l2][
@@ -135,6 +67,11 @@ context [
 
 diagram-ctx: context [
 	test: make face! [type: 'area size: 100x100]
+	;pos-text: func [text][
+	;	sz: size-text/with
+	;]
+	;node-cnt: 0
+	default-size: 80x50
 	default-corner: 10
 	default-knee: 10
 	default-arrow: 10x5
@@ -246,6 +183,10 @@ diagram-ctx: context [
 				type: 'panel
 				draw: copy []
 				actors: [
+					;on-create: func [face][probe "cr-dia1" ;probe face/options
+					;	mx: face/size probe face/options
+					;	node-cnt: 0			; Restart node counting for current diagram
+					;]
 					pos: ofs: brd: tri: none
 					on-created: func [face event /local line-width pen corner pane mx mv][
 						;probe "cr-dia2"
@@ -431,14 +372,13 @@ diagram-ctx: context [
 					case/all [
 						opts*/drag [
 							append face/options [drag-on: 'down]
-							append body-of :face/actors/on-drag bind copy [
+							append clear body-of :face/actors/on-drag bind copy [
 								face/offset/x: min 0 max face/parent/size/x - face/size/x face/offset/x 
 								face/offset/y: min 0 max face/parent/size/y - face/size/y face/offset/y
 								show face 'end
 							] :face/actors/on-drag
-							append body-of :face/actors/on-down bind bind [
-								system/view/auto-sync?: off pos: face/offset
-							] face/actors :face/actors/on-down
+							append clear body-of :face/actors/on-down [system/view/auto-sync?: off] 
+							append clear body-of :face/actors/on-up [system/view/auto-sync?: on]
 						]
 						opts*/wheel [
 							append body-of :face/actors/on-wheel bind copy/deep [
@@ -446,13 +386,13 @@ diagram-ctx: context [
 									event/ctrl? [
 										face/offset/x: min 0 max 
 											face/parent/size/x - face/size/x 
-											face/offset/x + (10 * event/picked)
+											face/offset/x + (10 * to-integer event/picked)
 									]
 									event/shift? []
 									true [
 										face/offset/y: min 0 max 
 											face/parent/size/y - face/size/y 
-											face/offset/y + (10 * event/picked)
+											face/offset/y + (10 * to-integer event/picked)
 									]
 								]
 								show face 'end
@@ -572,14 +512,25 @@ diagram-ctx: context [
 			template: [
 				type: 'base
 				color: none
-				size: 80x50;35
+				size: default-size
 				actors: [
 					draw*: none
 					text-pos: function [face][
 						sz: size-text face
+						;print [sz + 3 face/size sz + 3 > face/size]
+						;def: either all [
+						;	shape: face/options/shape 
+						;	shape/1 = 'default 
+						;	size: find shape pair!
+						;][size/1][default-size]
+						;face/size: min def max def sz + 3
 						pos: (face/size / 2) - (sz / 2) 
 						change skip tail face/draw -2 reduce [pos face/text]
 					]
+					;on-create: func [face][probe "cr-node1"
+					;	node-cnt: node-cnt + 1			; Enumerate nodes for easy referencing
+					;	set to-word rejoin ["node" node-cnt] face
+					;]
 					on-created: function [face event][;probe "cr-node2"
 						case [
 							rt: face/options/rt [
@@ -619,26 +570,32 @@ diagram-ctx: context [
 				
 				; Adjust shape
 				either all [
-					face/options/shape 
-					not empty? intersect face/options/shape [box ellipse diamond]
+					shp: face/options/shape 
+					not empty? sh: intersect shp [box ellipse diamond]
 				][
 					shape: at draw* 7
 					remove/part shape switch shape/1 [
 						box [4] ellipse [3] diamond [5]
 					]
 					case [
-						found: find/tail face/options/shape 'box [
+						found: find/tail shp 'box [
 							shape: insert shape [box 0x0]
-							if pair? found/1 [face/size: found/1]
+							if pair? found/1 [
+								either shp/1 = 'default [
+									sz: 3 + size-text face
+									face/size/x: max sz/x found/1/x
+									face/size/y: max sz/y found/1/y
+								][face/size: found/1]
+							]
 							shape: insert shape face/size - 1
 							insert shape either found: find/part found integer! 2 [found/1][default-corner]
 						]
-						found: find/tail face/options/shape 'ellipse [
+						found: find/tail shp 'ellipse [
 							shape: insert shape [ellipse 0x0]
 							if pair? found/1 [face/size: found/1]
 							insert shape face/size - 1
 						]
-						found: find/tail face/options/shape 'diamond [
+						found: find/tail shp 'diamond [
 							if pair? found/1 [
 								face/size: found/1
 							]
@@ -972,6 +929,11 @@ diagram-ctx: context [
 										point: find/tail from 'point
 										reduce ['offset point/1 'size 0x0]
 									]
+									all [
+										skp: find/tail from 'skip
+										me: find face/parent/pane face
+										first skip me skp/1
+									]
 								]
 							] 
 						][
@@ -1171,6 +1133,7 @@ diagram-ctx: context [
 						; Adjust end/offset for `hline`/`vline`
 						ortho?: none
 						if all [shape: face/options/shape find [hline vline] shape/1][
+							;probe shape
 							if not len: pick shape 2 [
 								diff: end/offset - start-pos
 								len: either shape/1 = 'hline [diff/x][diff/y]
@@ -1250,7 +1213,7 @@ diagram-ctx: context [
 								]
 							]
 						]
-						if ofs [end-pos: end-pos + ofs] 
+						if ofs [either ortho? [end/offset: end/offset - ofs][end-pos: end-pos + ofs]] 
 						
 						;if face/options/forward [
 						;	me: find face/parent/pane face
@@ -1575,6 +1538,7 @@ diagram-ctx: context [
 							]
 						]
 						face/draw: copy/deep draw
+						;probe face/options
 					]
 				]
 			]
@@ -1652,7 +1616,7 @@ context [
 		opt [s: (opts: make block! 10 data: make block! 10)
 			some [d:
 			  ['to | 'from] d3: [
-				1 3 [position | get-word! | 'each opt block!] d2: ( ; block may contain [some [integer! word! | word! | get-word!]]
+				1 3 [position | get-word! | 'skip integer! | 'each opt block!] d2: ( ; block may contain [some [integer! word! | word! | get-word!]]
 				append data append/only copy/part d 1 copy/part d3 d2
 			  )
 			  | block! d2: (
@@ -1692,7 +1656,7 @@ context [
 			append node-styles compose [| (to-lit-word s/-2)]
 		)]
 		some [d:
-			[
+			opt 'default [
 			  'box opt pair! opt integer! 
 			| ['diamond | 'ellipse] opt pair! 
 			] d2: (append opts compose/only [shape: (copy/part d d2)])
@@ -1724,328 +1688,3 @@ context [
 	]
 ]
 
-;Examples/tests
-switch 0 [; 1..9
-	1 [ ;Giuseppe's, anim, resize
-		tick: 0
-		view/flags probe dia [
-			size 500x500
-			diagram vertical border 1 resize beige "Example" [
-				below space 40x40
-				style arrow: connect arrow closed
-				style proc: node rate 2 on-time [
-					if face/extra/1 = tick [face/draw/fill-pen: face/extra/3]
-					if face/extra/2 = tick [face/draw/fill-pen: white]
-				]
-				at 0x0 box rate 1 on-time [tick: tick % 5 + 1]
-				proc ellipse "start" extra [1 5 green]
-				arrow 
-				p2: proc "    first^/operation" extra [2 5 green]
-				arrow
-				p3: proc "  second^/operation" extra [3 5 green]
-				return pad 0x30
-				arrow to top hint [horizontal 20 -200]
-				p4: proc ellipse "end" extra [3 5 blue]
-			]
-		] 'resize
-	]
-	2 [ ;2 diagrams
-		view probe dia [
-			size 340x550
-			;style dbl: connect extra [double]
-			below
-			diagram 320 border 1 vertical add 0x10 beige "Diagram example" [ ;  ;310x280
-				style closed-arrow: connect arrow closed from bottom to top;default 'connect 
-				space 40x40 
-				pad 60x0 
-				n1: node ellipse water font [color: white style: [bold italic] size: 12] "One" 
-				closed-arrow from bottom-left 10x-10 to top
-				return n2: node "Two" 
-				closed-arrow from bottom-right -10x-10 :n1 to top ;connect from n1 arrow closed
-				pad 5x0 n3: node diamond 60x50 "Three" 
-				connect arrow closed from left to top hint horizontal;connect double 
-				return pad 75x0 node box 50x30 "Four" 
-				connect arrow closed from :n3 to top hint horizontal;connect from n3 double line-width 2 
-				docs: node link https://www.red-lang.org/p/documentation.html "Re(a)d docs" 
-				closed-arrow from left to bottom :docs hint [horizontal -20 50]
-				connect from right to bottom hint horizontal line-width 2 pen brick arrow; ; 45 -150 -100 50 -70
-				return pad 250x-250 node ellipse 40x40 
-					border [line-width: 5 pen: gold] 
-					link https://www.red-lang.org
-					font-color red 
-					"Red"
-			] ;rate 0:0:2 on-time [unview]
-			pad 0x60
-			diagram 320 border 1 add 0x10 "Problem workout" beige [;size 330x170 
-				style step: node border gray font-color black 
-				style chk: node diamond border gray font-color black 
-				style note: node box 60x60 0 border silver font [color: gray name: "Times New Roman"]
-				space 30x20
-				origin 40x10 
-				think: step font-size 8 {Think about^/the problem}
-				connect line line-width 3 pen gray arrow ;from right to left
-				below pad -2x-2 step border [line-width 4 pen brick] "Experiment"
-				connect line hint vertical line-width 3 pen gray arrow from bottom to top; [vertical 40]
-				pad 2x2 across clr: chk "Clear?" 
-				connect from bottom to left -3x0 :think hint [vertical 20 -170] line-width 3 pen red arrow label [start 2x0] "No"
-				connect line line-width 3 pen leaf arrow from left to right label start "Yes"
-				pad -220x0 step "Implement"
-				connect line 230x70 from top 20x10 :clr ;spline 
-				at 250x40 note box 60x60 0 rt [f 8 i "Some " /i u "remarks" /u b " here" /b /f] yello ;"Some^/remarks^/here";
-			]
-		]
-	]
-	3 [ ;Type system, wheel, navigate
-		;system/view/auto-sync?: off
-		view/tight/no-wait lay: layout probe dia [
-			size 940x800 title "Red type system" 
-			style type-box: diagram border [pen: black] init [axis: 'y]
-			style conn: connect knee 3 
-			style hlin: connect hline 20
-			style type: node border off transparent 78x20 init [axis: 'y]
-			di: diagram wheel navigate height 780 add 0x5 snow [; width ;913x780
-				type-box 800 220.230.220 [
-					type-box 690x20 200.220.200 [
-						pad 300x-10 type "unset!"							]	hlin at 0x0 type "internal!" 
-						
-					type-box 690 200.220.200 [
-						type-box 580x20 180.200.180 [
-							at 300x0 type "event!"						]	hlin at 0x0 type "external!" 
-							
-						type-box 580 180.200.180 [
-							type-box 470 160.190.160 [
-								pad 280x0 	char: type "char!" 
-								handle: type "handle!"
-								pad -280x0 type-box 360 140.180.140 [
-									pad 150x0 
-									int: type "integer!"
-									float: type "float!" connect hline 40 at 0x0 type "percent!"
-																]	hlin at 0x0 type "number!" 
-								pad 280x0	time: type "time!" 
-								date: type "date!" 
-								pair: type "pair!" 
-								tuple: type "tuple!"
-										conn from :int to :char
-										conn from :int to :handle
-										conn from :float to :time
-																	]	hlin at 0x0 type "scalar!"
-							type-box 470 160.190.160 [
-								type-box 360 140.180.140 [
-									pad 150x20 
-									word: type "word!"	
-										conn pad 120x-60 type "lit-word!"
-										connect hline 40 from :word type "set-word!"
-										conn from :word type "get-word!"
-																]	hlin at 0x0 type "any-word!" 
-								pad 280x0 type "refinement!"
-								type "issue!"
-																	]	hlin at 0x0 type "all-word!" 
-							pad 290x0 type "datatype!"
-							type "none!"
-							type "logic!"
-							type "typeset!"
-																		]	hlin at 0x0 type "immediate!" 
-						pad 300x0 type "map!"
-						type "bitset!"
-						
-						pad -300x0 type-box 580 180.200.180 [
-							pad 170x0 type "function!" 	connect hline 40 type "routine!"
-							native: type "native!" 		conn pad 120x-60 type "op!"
-														connect hline 40 from :native type "action!"
-																		]	hlin at 0x0 type "any-function!"
-						type-box 580 180.200.180 [
-							pad 170x0 type "object!" 	connect hline 40 at 0x0 type "error!"
-																		]	hlin at 0x0 type "any-object!"
-						type-box 580 180.200.180 [
-							type-box 470 160.190.160 [
-								pad 40x20 string: type "string!"	
-									conn pad 120x-60 type "url!" connect hline 40 type "file!"
-									connect hline 160 from :string at 0x0 type "email!"
-									conn from :string hint [horizontal 21] pad 120x0 type "tag!"
-																	]	hlin at 0x0 type "any-string!"
-							pad 290x0 	conn from :string hint [horizontal 21] 
-											type "binary!"
-										conn from :string hint [horizontal 21] 
-											type "vector!"
-										type "image!"
-										
-							pad -290x0 type-box 470 160.190.160 [
-								type-box 360 140.180.140 [
-									pad 30x0 block: type "block!" 	
-										connect hline 160 at 0x0 type "hash!"
-										conn from :block hint [horizontal 21] pad 235x0 type "paren!"
-																]	hlin at 0x0 type "any-list!"
-								pad 100x0 type-box 260 140.180.140 [
-									pad 50x20 path: type "path!" 
-										conn pad 120x-60 type "lit-path!"
-										connect hline 40 from :path type "set-path!"
-										conn from :path type "get-path!"
-																]	hlin at 0x0 type "any-path!"
-								conn from :block to :path hint [horizontal 21] 
-																	]	hlin at 0x0 type "any-block!"
-																		]	hlin at 0x0 type "series!"
-																			] 	hlin at 0x0 type "default!" 
-																				] 	hlin at 0x0 type "any-type!"
-			] ;rate 0:0:2 on-time [unview]
-		]
-	]
-	4 [ ;Tables, wheel, drag
-		view probe dia [
-			size 220x120
-			style table: diagram border [corner: 0] 
-			style cell: node box 50x20 0 init [spacing: 0x-1 axis: 'y]
-			style plain-cell: node box 50x20 0 border [pen: off] font-color black init [spacing: 0x-1 axis: 'y]
-			style arrow: connect knee 3 arrow closed 
-			diagram drag wheel 200x100 gray [
-				table 52x98 [
-					origin 1x1
-					t1k1: cell "key1"
-					t1k2: cell "key2"
-					cell "field1"
-					cell "field2"
-					cell "field3"
-				] ;rate 0:0:2 on-time [unview]
-				pad 30x30 table 52x98 [
-					origin 1x1 
-					t2k1: cell "key1"
-					cell "key2"
-					cell "field1"
-					cell "field2"
-					cell "field3"
-				]
-				pad 30x20 table 52x79 [
-					origin 1x1 
-					t3k1: plain-cell font [color: black style: 'bold] "primary"
-					plain-cell "field1"
-					plain-cell "field2"
-					plain-cell "field3"
-				]
-				
-				arrow from :t1k2 to -2x0 :t2k1 label end "con1"
-				arrow from :t1k1 to -2x0 :t3k1 hint 115 label end "con2"
-			]
-		]
-	]
-	5 [ ;Grid, arrows, labels, drag
-		if not value? 'img [
-			img: draw/transparent 21x21 [
-				fill-pen red 
-				translate 10x10 
-				polygon 0x-10 2x-5 10x-10 5x-2 10x0 5x2 10x10 2x5 0x10 -2x5 -10x10 -5x2 -10x0 -5x-2 -10x-10 -2x-5
-			]
-		]
-		view probe dia [
-			size 220x220 backdrop gray
-			style cell: node box 30x20 3
-			style con: connect knee 5
-			style arr: connect knee 5 arrow
-			style linearr: connect line arrow closed
-			diagram 200x200 drag [
-				origin 50x50 space 50x50 
-				r1c1: cell r1c2: cell r1c3: cell r1c4: cell return
-				r2c1: cell r2c2: cell r2c3: cell r2c4: cell return
-				r3c1: cell r3c2: cell r3c3: cell r3c4: cell return
-				r4c1: cell r4c2: cell pad 5x0 r4c3: image img r4c4: cell return
-				r5c1: cell r5c2: cell r5c3: cell r5c4: cell 
-				
-				con from :r1c1 to :r3c2 label start "con1"
-				con from :r3c2 to top :r1c4 hint [25 -175] label [leg 3] "con2"
-				arr from :r1c4 to top :r2c2 hint [vertical 25] label [mid right] "arrow1"
-				con from left :r2c3 to top :r4c1 hint [-12 90] label [end right 2x0] "con3"
-				arr from left :r4c1 to :r2c1 hint -25 label [mid top right 2x15] "arrow2"
-				connect 'line -15x0 _ -60x0 _ -15x0 arrow closed from left :r4c3 to right :r3c1 label mid "angular"
-				linearr from bottom :r4c3 to top :r5c3
-				connect qcurve 260x200 from top-right :r4c3 to bottom-right -1x-1 :r2c3
-				connect 'spline 30x-10 -10x-50 arrow [10 8x2 closed green] from :r4c3 to :r3c4 pen red label [mid 27x-20 -5 align] "'spline"
-				connect spline 270x280 260x330 arrow [closed -10 8x2] from :r4c3 to :r5c4 label [mid 5x15 7 align] "spline"
-			]
-			;rate 0:0:2 on-time [unview]
-		]
-	]
-	6 [ ;Connect with normal faces
-		img: draw/transparent 31x31 [fill-pen red translate 15x15 polygon 0x-15 5x-5 15x0 5x5 0x15 -5x5 -15x0 -5x-5]
-		view probe dia [
-			space 50x20
-			fld: field focus on-enter [append list/data face/text]
-			connect	arrow label start "<Enter>" list: text-list data []
-			connect arrow label [mid right] "<Press>" button "Check" [
-				chk/data: (last list/data) = chk/text
-			] return
-			connect arrow hint vertical to right :chk
-			;connect from point 40x50 to top hint [vertical 30] 
-			chk: check "Amazing?"
-			;connect from point 40x50 hint [vertical 30] pad -45x-20 image img
-			;rate 0:0:2 on-time [unview]
-		]
-	]
-	7 [ ;`each`
-		view probe dia [diagram vertical [
-			style nod: node ellipse 50x50
-			space 30x10 pad 90x0  
-			top: nod "top" return 
-			connect to each forward 
-			dgr: diagram [
-				space 30x30 
-				one: nod "one" two: nod "two" three: nod "three" 
-			] 
-			return
-			connect from :one to each left hint vertical forward
-			pad 40x0 diagram [space 30x30 below nod "one-1" nod "one-2"]
-			connect from :three to each right hint vertical forward
-			pad -20x0 diagram [space 30x30 below nod "three-1" nod "three-2"]
-			return
-			pad 40x0 diagram [space 30x30 two-1: nod "two-1" two-2: nod "two-2"]
-			connect from :two to [:two-1 right] hint vertical
-			connect from :two to [:two-2 left] hint vertical
-		]]
-	]
-	8 [ ;Force
-		view probe dia [diagram force rate 10 [;on-time [diagram-ctx/calc-forces face][
-			size 500x500 
-			at 410x10 button "Randomize" [diagram-ctx/randomize face/parent]
-			style o: node ellipse 14x14 red loose  
-			style o2: node ellipse 4x4
-			b1: o "1" 
-			connect blank from [center :b1] to [center each [15 o2]]
-			connect blank from [center :b1] to [center each [40 o2]] force [radius 100]
-		]]
-	]
-	9 [ ;Array func flowchart
-		view dia [
-			title "Gregg's array func"
-			diagram 620x700 border 1 [
-				space 30x30
-				style conn: connect arrow [closed 8x3 black]
-				style hline: connect arrow [closed 8x3 black] hline 30 label start
-				style vline: connect arrow [closed 8x3 black] vline 30 label start
-				pad 0x20 node ellipse "Start"
-				conn cond1: node diamond "block? size"
-				hline "Yes" dia2: diagram width 380 add 0x10 border 1 silver [
-					space 30x30
-					cond2: node diamond 120x70 {      tail?^/more-sizes:^/   next size}
-					hline "Yes" n1: node {more-sizes:^/    none}
-					connect arrow [closed 8x3 black] vline 30 label start from [bottom :cond2] "No" n2: node {   size:^/first size}
-					connect arrow [closed 8x3 black] from [bottom :n1] hint vertical to [right :n2]
-					connect arrow [closed 8x3 black] vline 30 label start from [bottom :n2] node diamond 80x70 {    not^/integer?^/    size}
-					connect arrow [closed 8x3 black] hline 30 label start "Yes" node {     cause-error script 'expect-arg^/  reduce ['array 'size type? get/any 'size]}
-				]
-				origin 10x320
-				dia3: diagram width 460 add 0x10 border 1 silver [
-					space 30x30 pad 35x0
-					at 10x10 text bold "case" 
-					cond3: node diamond 100x70 {    block?^/more-sizes^/  }
-					hline "Yes" node {  append/only result array/initial more-sizes :value}
-					vline from [bottom :cond3] to top "No" cond4: node diamond 100x70 {series?^/:value}
-					hline "Yes" node {  loop size [append/only result copy/deep value]}
-					vline from [bottom :cond4] to top "No" cond5: node diamond 100x70 {  ^/any-function?^/       :value}
-					hline "Yes" node {  loop size [append/only result value]}
-					vline from [bottom :cond5] to top "No" node {  append/dup result value size}
-				]
-				conn hint [vertical 210] from [bottom :cond1] to [top -80x0 :dia3] label start "No" 
-				connect from [bottom :dia2] to [top -80x0 :dia3] hint [vertical 20]
-				conn from :dia3 hint horizontal to top origin 500x550 node "result"
-				vline from bottom to top node ellipse "End"
-			]
-		]
-	]
-]
