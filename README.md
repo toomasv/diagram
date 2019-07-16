@@ -1,6 +1,8 @@
 # diagram
 Diagram dialect, extends VID
 
+**Warning!** It's under development, bugs expected, breaking changes may appear in new versions.
+
 ## RedBNF
 
 	diagram: [['diagram | diagram-style] any diagram-settings any panel-settings diagram-block]
