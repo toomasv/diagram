@@ -72,3 +72,6 @@ Diagram dialect, extends VID
 	  |	['attract | 'repulse] [integer! | float!] 	; attractive and repulsive forces coeficients (~ 0.1 - 5)
 	  |	'coef integer!					; another coeficient for repulsive force (currently 10000 or 1000)
 	]]
+
+## Examples
+To try examples open `examples/examples.red`, select example and "Run" it.
