@@ -5,13 +5,13 @@ Diagram dialect, extends VID
 
 	diagram: [['diagram | diagram-style] any diagram-settings any panel-settings diagram-block]
 	diagram-settings: [direction | size-spec | border-spec | funcs]
-	direction: ['vertical | 'horizontal] ; General direction for connector, default is `horizontal`
+	direction: ['vertical | 'horizontal] 			; General direction for connector, default is `horizontal`
 	size-spec: [integer! | pair! | ['width | 'height] integer!] ; single integer! -- width
 	border-spec: ['border [integer! | color-spec | border-block]]
 	color-spec: [color-word | tuple!]
 	border-block: [
-		  quote line-width: integer! quote pen: [color-word | tuple!] 
-		| quote pen: [color-word | tuple!] quote line-width: integer!
+	  quote line-width: integer! quote pen: [color-word | tuple!] 
+	| quote pen: [color-word | tuple!] quote line-width: integer!
 	]
 	funcs: [any ['drag | 'wheel | 'navigate]]
 	diagram-block: [any [VID-keywords | node-spec | connect-spec]]
@@ -19,9 +19,9 @@ Diagram dialect, extends VID
 	node-spec: [['node | node-style] any node-settings any base-settings]
 	node-settings: [shape-spec | border-spec | link-spec | rt-spec]
 	shape-spec: [box-shape | ellipse-shape | diamond-shape] ;| custom-shape ; TBD 
-	box-shape: ['box opt pair! opt integer!] ; pair! is size, integer! is corner radius
-	ellipse-shape: ['ellipse pair!] ; pair! is size
-	diamond-shape: ['diamond pair!] ; pair! is size
+	box-shape: ['box opt pair! opt integer!] 		; pair! is size, integer! is corner radius
+	ellipse-shape: ['ellipse pair!] 			; pair! is size
+	diamond-shape: ['diamond pair!] 			; pair! is size
 	border-spec: ['border [integer! | word! | tuple! | border-block]] ; integer! is line-width, [word! | tuple!] is color
 	border-block: [
 	  'line-width integer! 'pen [word! | tuple!] 
@@ -37,9 +37,9 @@ Diagram dialect, extends VID
 								; inside a panel or another `diagram` (examples 7)
 								; or in provided block (example 8)
 	point-name: ['top | 'bottom | 'left | 'right | 'top-left | 'top-right | 'bottom-right | 'bottom-right | 'center]
-		; by default (i.e. horizontal direction) -- from `right` to `left`
-		; default for vertical direction -- from `bottom` to `top`
-	point-offset: pair! ; additional offset from named point
+								; by default (i.e. horizontal direction) -- from `right` to `left`
+								; default for vertical direction -- from `bottom` to `top`
+	point-offset: pair! 					; additional offset from named point
 	hint-attr: ['hint [direction | path-step | hint-spec]]
 	direction: ['vertical | 'horizontal]
 	path-step: integer!   					; length of first leg
