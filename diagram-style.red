@@ -10,60 +10,7 @@ Red [
 ;probe system/options
 ;probe system/standard
 ;probe system/script
-context [
-	line2: l2: none
-	set 'snakeline function [lines radius /vertical /horizontal /extern line2 l2][
-		collect [
-			forall lines [
-				either 1 < length? lines [
-					set [line1 line2] pick [
-						['vline 'hline]
-						['hline 'vline]
-					] to-logic any [
-						all [vertical odd? index? lines]
-						all [not vertical even? index? lines]
-					]
-					l1: lines/1 l2: lines/2
-					keep line1
-					
-					; Make room for arcs
-					cf1: pick [1 2] head? lines
-					keep l1*: either all [cf1 * radius < absolute l1 l1 <> 0] [
-						l1 / (absolute l1) * ((absolute l1) - (cf1 * radius))
-					][0]
-					cf2: pick [1 2] 2 = length? lines
-					l2*: either all [cf2 * radius < absolute l2 l2 <> 0] [
-						l2 / (absolute l2) * ((absolute l2) - (cf2 * radius))
-					][0]
-					
-					; Find arc's end-point
-					l1': either 0 = l1 [1][l1 / absolute l1] ; Avoid dividing by 0
-					l2': either 0 = l2 [1][l2 / absolute l2]
-					either line1 = 'hline [
-						a: as-pair l1' l2'
-						r1: min radius max 0 (absolute l1) / cf1
-						r2: min radius max 0 (absolute l2) / cf2
-					][
-						a: as-pair l2' l1'
-						r2: min radius max 0 (absolute l1) / cf1
-						r1: min radius max 0 (absolute l2) / cf2
-					]
-					keep ['arc] keep a * as-pair r1 r2
-
-					keep r2*: radius + (radius - r2 * 5) 		; To avoid bumps in case of strighter lines
-					keep r1*: radius + (radius - r1 * 5) 
-					keep 0
-					if any [
-						all [line1 = 'hline a/1 = a/2]
-						all [line1 = 'vline a/1 <> a/2]
-					][keep 'sweep]
-				][
-					keep line2 keep l2*						; last line
-				]
-			]
-		]
-	]
-]
+#include %../utils/snakeline.red
 
 diagram-ctx: context [
 	test: make face! [type: 'area size: 100x100]
@@ -133,6 +80,7 @@ diagram-ctx: context [
 						none? e/options/at-offset
 						not same? e r
 					][
+						;conn: none
 						dif: (e/offset + (e/size / 2)) - (r/offset + (r/size / 2))
 						if dif = 0x0 [dif: 0x1]
 						ang: arctangent2 dif/y dif/x
@@ -142,11 +90,13 @@ diagram-ctx: context [
 								r/options/to-nodes
 								node: find r/options/to-nodes e
 								conn: r/options/to/(index? node)
+								
 							]
 							all [
 								r/options/from-nodes
 								node: find r/options/from-nodes e
 								conn: r/options/from/(index? node)
+								
 							]
 						][
 							radius: any [all [force: conn/options/force force/radius] default-radius]
@@ -219,10 +169,13 @@ diagram-ctx: context [
 						;	face/text: face/para: none
 						;	face/parent/size/y: face/parent/size/y + 30
 						;]
+						;if face/text [
+							;fnt: make font! [style: 'bold size: 9] view [size 300x300 below panel with [draw: append append compose [font fnt box 0x17] size - 1x18 [10 text 0x0 "diagram"] size: size - 0x17] [origin 10x27 box 80x50 draw [fill-pen gold box 0x0 79x49 5 text 12x15 "Some text"] base red return base blue] base]
+						;]
 						
 						;case/all [
 						; Adjust size
-						if not all [face/extra face/extra/size not any [
+						if not all [face/extra face/extra/size not face/extra/default not any [
 							face/options/drag 
 							face/options/wheel 
 							face/options/navigate
@@ -262,7 +215,12 @@ diagram-ctx: context [
 									elem/size: mx + 20
 								]
 							]
-							face/size: mx 
+							either face/extra [
+								face/size/x: max mx/x case [w: face/extra/size [w/x] w: face/extra/width [w]] 
+								face/size/y: max mx/y case [w: face/extra/size [w/y] w: face/extra/height [w]] 
+							][
+								face/size: mx
+							]
 							if all [face/options add-space: face/options/add][
 								face/size: face/size + add-space
 							]
@@ -375,7 +333,7 @@ diagram-ctx: context [
 							append clear body-of :face/actors/on-drag bind copy [
 								face/offset/x: min 0 max face/parent/size/x - face/size/x face/offset/x 
 								face/offset/y: min 0 max face/parent/size/y - face/size/y face/offset/y
-								show face 'end
+								show face 'done
 							] :face/actors/on-drag
 							append clear body-of :face/actors/on-down [system/view/auto-sync?: off] 
 							append clear body-of :face/actors/on-up [system/view/auto-sync?: on]
@@ -513,6 +471,7 @@ diagram-ctx: context [
 				type: 'base
 				color: none
 				size: default-size
+				menu: ["do" do "front" front "stop" stop]
 				actors: [
 					draw*: none
 					text-pos: function [face][
@@ -542,11 +501,19 @@ diagram-ctx: context [
 								]
 							]
 							face/text [
-								face/actors/text-pos face		; Transfer text
+								face/actors/text-pos face			; Transfer text
 							]
 						]
 					]
-					on-down: func [face event][] 		; Waiting for links
+					on-menu: func [face event][						; Set manually?
+						switch event/picked [
+							do [do face/text] 
+							front [move pane: find face/parent/pane face tail pane]
+							stop [probe face/parent/rate: none]
+						]
+					] 	; Experimental, just a thought for flowchart
+					on-drag: func [face event][reconnect face]		; Set manually?
+					;on-down: func [face event][] 					; Waiting for links ; NB! Should be set manually
 				]
 			]
 			init: [ ;probe "node1"
@@ -644,7 +611,7 @@ diagram-ctx: context [
 							]
 						]
 					]
-					insert body-of :face/actors/on-down compose [browse (link)]
+					;insert body-of :face/actors/on-down compose [browse (link)] ;define manually
 					either face/options [
 						append face/options [cursor: 'hand]
 					][
@@ -922,6 +889,14 @@ diagram-ctx: context [
 								block? from 
 								any [
 									all [
+										each: find/tail from 'each
+										each/1
+										;switch type?/word each/1 [
+										;	block! [each/1]				; bunch of provided styles/nodes
+										;	get-word! [probe select get to-word each/1 'pane]
+										;]
+									]
+									all [
 										from-node: find from get-word! 
 										get to-word from-node/1
 									]
@@ -933,6 +908,10 @@ diagram-ctx: context [
 										skp: find/tail from 'skip
 										me: find face/parent/pane face
 										first skip me skp/1
+									]
+									all [
+										from-node: find from object!
+										first from-node
 									]
 								]
 							] 
@@ -964,14 +943,19 @@ diagram-ctx: context [
 										reduce ['offset point/1 'size 0x0]
 									]
 									all [
+										skp: find/tail to 'skip
+										me: find face/parent/pane face
+										first skip me skp/1
+									]
+									all [
 										each: find/tail to 'each
 										block? each/1 
 										each/1				; bunch of provided styles/nodes
 									]
-									;all [
-									;	to-node: find to object!
-									;	to-node/1
-									;]
+									all [
+										to-node: find to object!
+										first to-node
+									]
 								]
 							]
 						][
@@ -989,6 +973,58 @@ diagram-ctx: context [
 							;prin ["par: "] print end/parent/type
 						]
 						
+						; From each?
+						if all [from each: find/tail from 'each][
+							case [
+								any [
+									block? each: each/1 
+									all [word? each each: get each]
+									all [get-word? each each: select get to-word each 'pane]
+								][
+									;parent-opts: any [face/parent/options face/parent/options: copy []]
+									;move/part find face/options 'styles parent-opts 2
+									;styles: face/parent/options/styles
+									;prin "each: " probe each 
+									cnt: 0
+									; find position after current connect
+									found: find/tail face/parent/pane face
+									; copy data of current connect
+									data*: copy/deep face/data
+									; duplicate current options
+									opts*: face/options
+									; remove `each` option
+									remove/part find data*/from 'each 2
+									; adjusted from
+									from*: data*/from
+									parse each [
+										some [(cnt: cnt + 1 w: nod: none)
+											set nod get-word! opt [set w string!] (
+												either cnt = 1 [
+													start: get to-word nod
+												][
+													;prin "from: " probe 
+													data*/from: append copy from* nod
+													found: insert found layout/only compose [
+														connect with [data: copy/deep data* options: opts*] (any [w []])
+													]
+												]
+											)
+										|	set nod object! (
+												either cnt = 1 [
+													start: nod
+												][
+													data*/from: append copy from* nod
+													found: insert found layout/only compose [
+														connect with [data: copy/deep data* options: opts*]
+													]
+												]
+											)
+										]
+									]
+								]
+							]
+
+						]
 						; To each?
 						if all [to each: find/tail to 'each][
 							case [
@@ -1031,7 +1067,7 @@ diagram-ctx: context [
 													connect with [data: (data*) options: (opts*)] (nod) 
 												] either cnt = 1 [i - 1][i] styles
 											)
-										|	word! opt [set w string!](
+										|	set nod word! opt [set w string!](
 												either cnt = 1 [
 													found: insert found layout/only/styles dia compose [(nod) (any [w []])] styles
 													end: found/-1
@@ -1087,8 +1123,7 @@ diagram-ctx: context [
 						]
 						vertical?: dir = 'vertical
 						
-						; Find starting- and ending-points
-						;prin ["hi" start/parent/type] prin [" " face/parent/type] print [" " end/parent/type "ho"]
+						; Find initial starting- and ending-points
 						either any [start/parent = end/parent block? start block? end] [
 							start-pos: start/offset + (start/size / 2)
 							end-pos: end/offset + (end/size / 2)
@@ -1133,7 +1168,6 @@ diagram-ctx: context [
 						; Adjust end/offset for `hline`/`vline`
 						ortho?: none
 						if all [shape: face/options/shape find [hline vline] shape/1][
-							;probe shape
 							if not len: pick shape 2 [
 								diff: end/offset - start-pos
 								len: either shape/1 = 'hline [diff/x][diff/y]
@@ -1234,14 +1268,16 @@ diagram-ctx: context [
 							]
 							face/options/backward [
 								pane: me
-								until [
-									pane: back back pane
-									any [
-										pane/1/options/style <> 'connect
-										pane/1/options/parent-style <> 'connect
-									]
-								]
-								swap pane me
+								;until [
+								;	pane: skip pane -2
+								;	any [
+								;		pane/1/options/style <> 'connect
+								;		pane/1/options/parent-style <> 'connect
+								;	]
+								;]
+								there: find face/parent/pane start
+								;print [index? me index? there]
+								;move me there
 							]
 							face/options/back [
 								;print [length? me length? face/parent/pane index? me index? face/parent/pane]
@@ -1374,20 +1410,36 @@ diagram-ctx: context [
 							; Prepare snakeline argument block
 							shape: [snake]
 							lines: copy []
+							backwards: no
+							op: :append
 							case [
 								hint [
 									either path [
+										idx: 1 + length? path
+										if found: find path '_ [
+											idx: index? found
+											path: head change/part found [0 0] 1
+											op: :change
+										]
 										frst: sum extract path 2
 										scnd: sum extract next path 2
-										rest: end-pos - (start-pos + either vertical? [
+										rest: end-pos - start-pos - either vertical? [
 											as-pair scnd frst
-										][	as-pair frst scnd
-										])
+										][	as-pair frst scnd]
+										op at path idx case [
+											any [
+												all [vertical? 		odd? idx]
+												all [not vertical? 	even? idx]
+											][reduce [rest/y rest/x]]
+											any [
+												all [vertical? 		even? idx]
+												all [not vertical? 	odd? idx]
+											][reduce [rest/x rest/y]]
+										]
 									][
 										path: copy []
 										rest: end-pos - start-pos
-									]
-									append path case [
+										append path case [
 										any [
 											all [vertical? 		even? length? path]
 											all [not vertical? 	odd? length? path]
@@ -1397,6 +1449,8 @@ diagram-ctx: context [
 											all [not vertical? 	even? length? path]
 										][reduce [rest/x rest/y]]
 									]
+									]
+									;prin "path: " probe 
 									append lines path
 									;probe lines
 								]
@@ -1548,7 +1602,14 @@ diagram-ctx: context [
 				if all [face/options face/options/style <> 'connect] [			; For easy finding
 					append face/options [parent-style: connect]
 				]
-				if all [face/data face/data/to each: face/data/to/each block? each][
+				if all [
+					face/data 
+					any [
+						all [face/data/to each: face/data/to/each] 
+						all [face/data/from each: face/data/from/each]
+					] 
+					block? each
+				][
 					put face/options 'styles local-styles
 				]
 				;probe "conn2"
@@ -1586,19 +1647,20 @@ context [
 					  integer! | block! | tuple! | issue!
 					| set clr word! if (find [issue! tuple!] type?/word attempt [get clr])
 					]
-				| 'animate anim-block
+				| 'animate anim-block  										;TBD
 				] (
 				  append opts copy/part d 2
 				)
-			|	[ pair! (append extra append copy [size] d/1) 				; predetermined size
+			|	opt ['default d: s (append extra [default])]
+				[ pair! (append extra append copy [size] d/1) 				; predetermined size
 				| integer! (append extra append copy [width] d/1)			; predetermined width
 				| ['width | 'height] integer! (append extra copy/part d 2)	; predetermined dim
 				]
 			|	'add [integer! | pair!] (append opts copy/part d 2)			; addition to calculated size
-			|	['vertical | 'horizontal | 'force | 'radial] ( ;'border | 			; layout type
+			|	['vertical | 'horizontal | 'force] (  ;TBD | 'radial 		; layout type
 				  append opts append copy/part d 1 true
 				)  
-			| 	['drag | 'wheel | 'navigate | 'resize] ( ;TBD | 'scroll | 'zoom | 'collapse | 'collapsible] (
+			| 	['drag | 'wheel | 'navigate | 'resize] ( ;TBD | 'scroll | 'zoom (?) | 'collapse | 'collapsible] (
 				  append opts append copy/part d 1 true
 				)  
 			] s2: (
@@ -1616,7 +1678,7 @@ context [
 		opt [s: (opts: make block! 10 data: make block! 10)
 			some [d:
 			  ['to | 'from] d3: [
-				1 3 [position | get-word! | 'skip integer! | 'each opt block!] d2: ( ; block may contain [some [integer! word! | word! | get-word!]]
+				1 3 [position | get-word! | 'skip integer! | 'each opt [block! | get-word!]] d2: ( ; block may contain [some [integer! word! | word! | get-word!]]
 				append data append/only copy/part d 1 copy/part d3 d2
 			  )
 			  | block! d2: (
