@@ -10,7 +10,7 @@ Red [
 ;probe system/options
 ;probe system/standard
 ;probe system/script
-#include %../utils/snakeline.red
+#include %snakeline.red
 
 diagram-ctx: context [
 	test: make face! [type: 'area size: 100x100]
