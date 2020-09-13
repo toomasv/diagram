@@ -29,8 +29,8 @@ diagram-ctx: context [
 	points: [center top bottom left right top-left top-right bottom-left bottom-right]
 	;space: none
 	lim: func [:dim face][face/offset/:dim + face/size/:dim]
-	default-attract: .9;.55
-	default-repulse: .37
+	default-attract: 0.9 ;.55
+	default-repulse: 0.37
 	default-coef: 10000
 	default-radius: 30			; for force
 	
@@ -217,7 +217,7 @@ diagram-ctx: context [
 							]
 							either face/extra [
 								face/size/x: max mx/x case [w: face/extra/size [w/x] w: face/extra/width [w]] 
-								face/size/y: max mx/y case [w: face/extra/size [w/y] w: face/extra/height [w]] 
+								face/size/y: max mx/y case [w: face/extra/size [w/y] w: face/extra/height [w] true [10]] 
 							][
 								face/size: mx
 							]
@@ -509,7 +509,7 @@ diagram-ctx: context [
 						switch event/picked [
 							do [do face/text] 
 							front [move pane: find face/parent/pane face tail pane]
-							stop [probe face/parent/rate: none]
+							stop [face/parent/rate: none]
 						]
 					] 	; Experimental, just a thought for flowchart
 					on-drag: func [face event][reconnect face]		; Set manually?
@@ -1637,7 +1637,7 @@ context [
 		]
 	]
 	
-	diagram-rule: [s:
+	diagram-rule: [s: 
 		opt [if (all [set-word? s/-2 'style = s/-3]) (
 			append diagram-styles compose [| (to-lit-word s/-2)]
 		)]
